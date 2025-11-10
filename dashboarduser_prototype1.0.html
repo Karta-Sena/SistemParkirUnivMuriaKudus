@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard Parkir UMK</title>
+  
+  <!-- CSS File -->
+  <link rel="stylesheet" href="dashboarduser_prototype1.0.css">
+  
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <!-- SVG Filters for Liquid Glass Effect -->
+  <svg style="display: none;">
+    <defs>
+      <!-- Liquid Glass Distortion Filter -->
+      <filter id="liquid-glass">
+        <feTurbulence 
+          type="fractalNoise" 
+          baseFrequency="0.01 0.01" 
+          numOctaves="2" 
+          seed="5" 
+          result="turbulence">
+          <animate 
+            attributeName="baseFrequency" 
+            dur="30s" 
+            values="0.01 0.01;0.015 0.015;0.01 0.01" 
+            repeatCount="indefinite"/>
+        </feTurbulence>
+        <feDisplacementMap 
+          in="SourceGraphic" 
+          in2="turbulence" 
+          scale="8" 
+          xChannelSelector="R" 
+          yChannelSelector="G"/>
+        <feGaussianBlur stdDeviation="0.5"/>
+      </filter>
+      
+      <!-- Gooey Effect for Smooth Morphing -->
+      <filter id="gooey">
+        <feGaussianBlur in="SourceGraphic" stdDeviation="10" result="blur"/>
+        <feColorMatrix in="blur" mode="matrix" 
+          values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -7" 
+          result="gooey"/>
+        <feComposite in="SourceGraphic" in2="gooey" operator="atop"/>
+      </filter>
+    </defs>
+  </svg>
+
+  <!-- Background Animated Blobs -->
+  <div class="background-blob blob-1"></div>
+  <div class="background-blob blob-2"></div>
+  <div class="background-blob blob-3"></div>
+  <div class="frosted-background-overlay"></div>
+
+  <!-- Sidebar Navigation (Desktop Only) -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <img src="Lambang UMK.png" alt="Logo UMK" />
+    </div>
+    <nav class="sidebar-nav">
+      <a href="#" class="nav-item active">
+        <i class="fa-solid fa-house"></i>
+        <span>Overview</span>
+      </a>
+      <a href="#" class="nav-item">
+        <i class="fa-solid fa-car"></i>
+        <span>Fitur B</span>
+      </a>
+      <a href="#" class="nav-item">
+        <i class="fa-solid fa-user"></i>
+        <span>Fitur C</span>
+      </a>
+    </nav>
+  </aside>
+
+  <!-- Bottom Navigation (Mobile Only) -->
+  <nav class="bottom-nav">
+    <a href="#" class="nav-item active">
+      <i class="fa-solid fa-house"></i>
+      <span>A</span>
+    </a>
+    <a href="#" class="nav-item">
+      <i class="fa-solid fa-car"></i>
+      <span>B</span>
+    </a>
+    <a href="#" class="nav-item">
+      <i class="fa-solid fa-user"></i>
+      <span>C</span>
+    </a>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    
+    <!-- Top Header -->
+    <header class="top-header">
+      <!-- Logo Mobile (Mobile Only) -->
+      <div class="logo-mobile">
+        <img src="Lambang UMK.png" alt="Logo UMK" />
+      </div>
+
+      <!-- Right Section: Notification & User Profile -->
+      <div class="header-actions">
+        
+        <!-- Notification Button -->
+        <div class="notif-wrapper">
+          <button class="icon-btn" id="notif-btn" aria-label="Notifications">
+            <i class="fa-solid fa-bell"></i>
+            <span class="notif-badge"></span>
+          </button>
+          
+          <!-- Notification Dropdown -->
+          <div class="notif-dropdown">
+            <div class="dropdown-header">
+              <h3>Notifikasi</h3>
+            </div>
+            <div class="dropdown-body">
+              <div class="notif-item">
+                <div class="notif-icon blue">
+                  <i class="fa-solid fa-comment"></i>
+                </div>
+                <div class="notif-content">
+                  <p class="notif-title">Komentar Baru</p>
+                  <p class="notif-text">Ava: "Love this shot!"</p>
+                </div>
+              </div>
+              <div class="notif-item">
+                <div class="notif-icon orange">
+                  <i class="fa-solid fa-car"></i>
+                </div>
+                <div class="notif-content">
+                  <p class="notif-title">Kendaraan Terparkir</p>
+                  <p class="notif-text">U 1212 T masuk pukul 07:45</p>
+                </div>
+              </div>
+              <div class="notif-item">
+                <div class="notif-icon purple">
+                  <i class="fa-solid fa-exclamation-circle"></i>
+                </div>
+                <div class="notif-content">
+                  <p class="notif-title">Peringatan</p>
+                  <p class="notif-text">STNK akan habis dalam 30 hari</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- User Profile Dropdown -->
+        <div class="user-wrapper">
+          <button class="user-btn" id="user-btn">
+            <img src="assets/img/avatar.png" alt="Avatar" class="avatar">
+            <div class="user-info">
+              <span class="user-name">User Testing</span>
+              <span class="user-role">Mahasiswa</span>
+            </div>
+            <i class="fa-solid fa-chevron-down arrow-icon"></i>
+          </button>
+          
+          <!-- User Dropdown Menu -->
+          <div class="user-dropdown" data-username="User Testing" data-role="Mahasiswa">
+            <div class="dropdown-body">
+              <a href="#" class="dropdown-item">
+                <i class="fa-solid fa-user-circle"></i>
+                <span>Profil Saya</span>
+              </a>
+              <a href="#" class="dropdown-item">
+                <i class="fa-solid fa-key"></i>
+                <span>Ubah Kata Sandi</span>
+              </a>
+              <a href="#" class="dropdown-item">
+                <i class="fa-solid fa-cog"></i>
+                <span>Pengaturan</span>
+              </a>
+              <div class="dropdown-divider"></div>
+              <a href="logout.php" class="dropdown-item danger">
+                <i class="fa-solid fa-right-from-bracket"></i>
+                <span>Keluar</span>
+              </a>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </header>
+
+    <!-- Page Content -->
+    <div class="page-content">
+      <section class="dashboard">
+        
+        <!-- Bento Card 1: QR Code Parkir -->
+        <article class="bento-box">
+          <div class="liquid-effect"></div>
+          <div class="bento-content">
+            <h3 class="box-title">Kartu Parkir Anda</h3>
+            <div class="box-content center">
+              <div class="qr-placeholder">[QR CODE]</div>
+              <p><strong>Nama:</strong> User Testing</p>
+              <p><strong>Role:</strong> Mahasiswa</p>
+              <button class="btn btn-primary">Perbarui Barcode</button>
+            </div>
+          </div>
+        </article>
+
+        <!-- Bento Card 2: Lokasi Parkir -->
+        <article class="bento-box">
+          <div class="liquid-effect"></div>
+          <div class="bento-content">
+            <h3 class="box-title">Lokasi Parkir Saat Ini</h3>
+            <div class="box-content">
+              <p>Kendaraan Anda sedang terparkir di:</p>
+              <h2 class="location-highlight">B-01 (Gedung Teknik)</h2>
+              <p class="location-note">Pastikan kendaraan Anda di lokasi ini sebelum keluar.</p>
+            </div>
+          </div>
+        </article>
+
+        <!-- Bento Card 3: Kendaraan Aktif -->
+        <article class="bento-box">
+          <div class="liquid-effect"></div>
+          <div class="bento-content">
+            <h3 class="box-title">Kendaraan Aktif</h3>
+            <div class="box-content">
+              <p>Kendaraan utama yang digunakan untuk parkir:</p>
+              <div class="vehicle-info">
+                <p><strong>Plat:</strong> U 1212 T</p>
+                <p><strong>Jenis:</strong> Motor</p>
+                <p><strong>STNK:</strong> 120013001400</p>
+              </div>
+              <div class="btn-group">
+                <button class="btn btn-warning">Edit</button>
+                <button class="btn btn-danger">Hapus</button>
+              </div>
+              <button class="btn btn-primary full-width">+ Tambah Kendaraan Baru</button>
+            </div>
+          </div>
+        </article>
+
+        <!-- Bento Card 4: Riwayat Parkir -->
+        <article class="bento-box">
+          <div class="liquid-effect"></div>
+          <div class="bento-content">
+            <h3 class="box-title">Riwayat Parkir Terakhir</h3>
+            <div class="box-content">
+              <div class="table-wrapper">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Plat</th>
+                      <th>Masuk</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>U 1212 T</td>
+                      <td>07:45</td>
+                      <td><span class="status-badge status-out">Keluar</span></td>
+                    </tr>
+                    <tr>
+                      <td>H 8787 Z</td>
+                      <td>10:20</td>
+                      <td><span class="status-badge status-parked">Terparkir</span></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <button class="btn btn-primary full-width">Lihat Semua Riwayat</button>
+            </div>
+          </div>
+        </article>
+
+      </section>
+    </div>
+
+  </main>
+
+  <!-- JavaScript -->
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // Toggle Notification Dropdown
+      const notifWrapper = document.querySelector('.notif-wrapper');
+      const notifBtn = document.getElementById('notif-btn');
+      
+      // Toggle User Dropdown
+      const userWrapper = document.querySelector('.user-wrapper');
+      const userBtn = document.getElementById('user-btn');
+      const userDropdown = document.querySelector('.user-dropdown');
+      const userNameEl = document.querySelector('.user-name');
+      const userRoleEl = document.querySelector('.user-role');
+
+      // Sync user data to dropdown for mobile
+      if (userDropdown && userNameEl && userRoleEl) {
+        userDropdown.setAttribute('data-username', userNameEl.textContent.trim());
+        userDropdown.setAttribute('data-role', userRoleEl.textContent.trim());
+      }
+
+      // Close all dropdowns
+      function closeAllDropdowns() {
+        notifWrapper?.classList.remove('active');
+        userWrapper?.classList.remove('active');
+      }
+
+      // Notification toggle
+      if (notifBtn && notifWrapper) {
+        notifBtn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          const isActive = notifWrapper.classList.contains('active');
+          closeAllDropdowns();
+          if (!isActive) {
+            notifWrapper.classList.add('active');
+          }
+        });
+      }
+
+      // User dropdown toggle
+      if (userBtn && userWrapper) {
+        userBtn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          const isActive = userWrapper.classList.contains('active');
+          closeAllDropdowns();
+          if (!isActive) {
+            userWrapper.classList.add('active');
+          }
+        });
+      }
+
+      // Close dropdowns when clicking outside
+      document.addEventListener('click', function(e) {
+        if (!notifWrapper?.contains(e.target) && !userWrapper?.contains(e.target)) {
+          closeAllDropdowns();
+        }
+      });
+
+      // Prevent dropdown close when clicking inside
+      document.querySelectorAll('.notif-dropdown, .user-dropdown').forEach(dropdown => {
+        dropdown.addEventListener('click', function(e) {
+          e.stopPropagation();
+        });
+      });
+    });
+  </script>
+
+</body>
+</html>
