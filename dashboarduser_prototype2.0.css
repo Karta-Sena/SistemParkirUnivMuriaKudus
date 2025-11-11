@@ -44,7 +44,8 @@
     --transition-fast: all 0.2s ease;
 }
 
-/* BASE BODY STYLES  */
+/* BASE BODY STYLES */
+/* CATATAN: background: linear-gradient... dipertahankan untuk efek frosted glass */
 body {
     font-family: 'Aeonik Fono', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     background: linear-gradient(135deg, #0E3A70 0%, #1E429F 50%, #2563EB 100%);
@@ -57,51 +58,8 @@ body {
     -moz-osx-font-smoothing: grayscale;
 }
 
-/* ... (Style blob, overlay, sidebar, nav, header, dropdowns, dll, tetap sama) ... */
-.background-blob {
-    position: fixed;
-    border-radius: 50%;
-    filter: blur(100px);
-    opacity: 0.6;
-    z-index: 0;
-    animation: moveBlob 30s infinite alternate ease-in-out;
-    will-change: transform;
-    pointer-events: none;
-}
-.blob-1 {
-    width: 50vw; 
-    height: 50vw; 
-    max-width: 500px; 
-    max-height: 500px;
-    background: radial-gradient(circle, #114A9B 0%, transparent 70%);
-    top: -10vh;
-    left: -15vw;
-}
-.blob-2 {
-    width: 60vw; 
-    height: 60vw; 
-    max-width: 600px; 
-    max-height: 600px;
-    background: radial-gradient(circle, rgba(255, 255, 255, 0.3) 0%, transparent 70%);
-    bottom: -15vh;
-    right: -20vw;
-    animation-delay: -10s;
-}
-.blob-3 {
-    width: 40vw; 
-    height: 40vw; 
-    max-width: 400px; 
-    max-height: 400px;
-    background: radial-gradient(circle, #FBCE00 0%, transparent 70%);
-    bottom: 5vh;
-    left: 10vw;
-    animation-delay: -20s;
-}
-@keyframes moveBlob {
-    0% { transform: translate(0, 0) scale(1) rotate(0deg); }
-    50% { transform: translate(60px, 80px) scale(1.1) rotate(180deg); }
-    100% { transform: translate(120px, 160px) scale(1.2) rotate(360deg); }
-}
+/* ===== PERUBAHAN 1: BLOK .background-blob LAMA DIHAPUS DARI SINI ===== */
+
 .frosted-background-overlay {
     position: fixed;
     top: 0;
@@ -328,26 +286,17 @@ body {
 /* PAGE CONTENT  */
 .page-content {
     width: 100%;
-    /* --- REVISI: Hapus max-width agar kontainer bisa fleksibel --- */
-    /* max-width: 1400px; */ 
     margin: 0 auto;
     padding: var(--space-lg);
-    /* --- REVISI: Hapus transisi, tidak diperlukan lagi --- */
-    /* transition: max-width var(--transition-sidebar); */
 }
 
 /* DASHBOARD (Mobile First) */
 .dashboard {
     display: grid;
     gap: var(--space-lg);
-    /* --- REVISI: Terapkan auto-fit secara global --- */
-    /* Menargetkan 1 kolom di HP (misal 375px) */
-    /* Menargetkan 2 kolom di tablet (misal 768px) */
-    /* Menargetkan 3+ kolom di desktop (1000px+) */
     grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
 }
 
-/* ... (Style dropdown, bento box, dll, tetap sama) ... */
 .notif-wrapper {
     position: relative;
 }
@@ -1071,15 +1020,12 @@ body {
 
 /* RESPONSIVE: TABLET  */
 @media (min-width: 768px) and (max-width: 991px) {
-    /* --- REVISI: Terapkan auto-fit --- */
     .dashboard {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
     }
     .page-content {
         padding: var(--space-xl);
-        /* --- REVISI: Hapus max-width --- */
-        /* max-width: 1400px; */ 
     }
     .bento-box {
         padding: var(--space-xl);
@@ -1195,10 +1141,8 @@ body {
     .page-content {
         padding: calc(var(--header-height) + var(--space-lg)) var(--space-xl) var(--space-xl);
     }
-    
-    /* --- REVISI: Terapkan auto-fit (di-inherit dari style global) --- */
+
     .dashboard {
-        /* Atur min-width bento box di 340px untuk desktop */
         grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
         gap: var(--space-xl);
     }
@@ -1249,7 +1193,6 @@ body {
         }
     }
     
-    /* --- REVISI: Style untuk Sidebar Collapsed --- */
     body.sidebar-collapsed .sidebar {
         width: var(--sidebar-width-collapsed);
         padding-left: var(--space-sm);
@@ -1289,7 +1232,6 @@ body {
 /* RESPONSIVE: LARGE DESKTOP (≥1400px) */
 @media (min-width: 1400px) {
     .page-content {
-        /* max-width di-override oleh .sidebar-collapsed .page-content */
         padding: calc(var(--header-height) + var(--space-xl)) var(--space-2xl) var(--space-2xl);
     }
     
@@ -1314,7 +1256,6 @@ body {
     }
 }
 
-/* ... (Sisa file CSS: Focus, Reduce Motion, Print, Utilities, dll, tetap sama) ... */
 .nav-item:focus,
 .icon-btn:focus,
 .user-btn:focus,
@@ -1524,4 +1465,10 @@ a, button, .nav-item, .dropdown-item {
     background: rgba(255, 255, 255, 0.3);
 }
 @media (prefers-color-scheme: dark) {
+}
+
+.gradient-bg {
+    position: fixed !important; 
+    z-index: 0 !important;
+    background: transparent !important;
 }
