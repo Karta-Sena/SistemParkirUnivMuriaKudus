@@ -141,29 +141,11 @@ $conn->close();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Formulir Pendaftaran UMK</title>
-    <link rel="stylesheet" href="Css/Fonts.css">
-    <link rel="stylesheet" href="Css/gradient_bg/gradient_bg.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="Css/form_layout.css"> </head>
 <body>
-    <div class="gradient-bg">
-      <svg xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <filter id="goo">
-            <feGaussianBlur in="SourceGraphic" stdDeviation="10" result="blur" />
-            <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -8" result="goo" />
-            <feBlend in="SourceGraphic" in2="goo" />
-          </filter>
-        </defs>
-      </svg>
-      <div class="gradients-container">
-        <div class="g1"></div>
-        <div class="g2"></div>
-        <div class="g3"></div>
-        <div class="g4"></div>
-        <div class="g5"></div>
-        <div class="interactive"></div>
-      </div>
-    </div>
     <form class="register-card" id="register-form" action="registrasi.php" method="POST" autocomplete="off">
 
         <img src="Lambang UMK.png" alt="Logo UMK" class="logo"
@@ -246,7 +228,6 @@ $conn->close();
             Sudah punya akun? <a href="login.php">Login</a>
         </p>
     </form>
-    <script src="Css/gradient_bg/gradient_bg.js"></script>
     <script src="Js/prototype7.js"></script>
 </body>
 </html>
