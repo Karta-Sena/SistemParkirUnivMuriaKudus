@@ -2,13 +2,12 @@
 session_start();
 include 'config.php';
 
-// --- MODIFIKASI 1: Ambil pesan sukses dari reset password ---
+// MODIFIKASI 1: Ambil pesan sukses dari reset password 
 $login_message = '';
 if (isset($_SESSION['login_message'])) {
     $login_message = $_SESSION['login_message'];
     unset($_SESSION['login_message']); // Hapus pesan setelah diambil
 }
-// -----------------------------------------------------------
 
 // LOGIKA UNTUK ALUR DARI REGISTRASI BERDASARKAN RANCANGAN ALUR SISTEM YA GUYS 
 $selectedRole = isset($_GET['role']) ? $_GET['role'] : '';
@@ -66,8 +65,9 @@ $conn->close();
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login Akun Parkir UMK</title>
     
-    <link rel="stylesheet" href="Css/fonts.css">
-    <link rel="stylesheet" href="Css/gradient_bg/gradient_bg.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="Css/form_layout.css">
     </head>
 <body>

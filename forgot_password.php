@@ -5,15 +5,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Lupa Password – Parkir UMK</title>
-  <link rel="stylesheet" href="Css/fonts.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="Css/form_layout.css">
 </head>
 <body>
-
-  <div class="background-blob blob-1"></div>
-  <div class="background-blob blob-2"></div>
-  <div class="background-blob blob-3"></div>
-
   <form class="register-card" id="forgot-form" action="request_reset.php" method="POST" autocomplete="off">
     <img src="Lambang UMK.png" alt="Logo UMK" class="logo"
          onerror="this.src='https://placehold.co/130x40/ffffff/6a89cc?text=UMK&font=sans-serif'">

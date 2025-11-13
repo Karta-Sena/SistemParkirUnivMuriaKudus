@@ -16,15 +16,12 @@ if (empty($token)) {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Reset Password – Parkir UMK</title>
-  <link rel="stylesheet" href="Css/fonts.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="Css/form_layout.css">
 </head>
 <body>
-
-  <div class="background-blob blob-1"></div>
-  <div class="background-blob blob-2"></div>
-  <div class="background-blob blob-3"></div>
-
   <form class="register-card" id="reset-form" action="do_reset.php" method="POST" autocomplete="off">
     <input type="hidden" name="token" value="<?php echo $token; ?>">
     
