@@ -36,7 +36,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $stmt_insert->execute();
 
         if ($stmt_insert->affected_rows > 0) {
-            $reset_link = "http://localhost/Sistem Parkir UMK/reset_password.php?token=" . $token_raw;
+            $reset_link = "http://localhost/SistemParkirUMKPrototype/reset_password.php?token=" . $token_raw;
             $subject = "Link Reset Password Parkir UMK";
             $body = "Anda menerima email ini karena ada permintaan reset password untuk akun Anda.<br><br>";
             $body .= "Klik link ini untuk reset password Anda: <br>";

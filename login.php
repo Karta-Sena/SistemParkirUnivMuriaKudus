@@ -41,7 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 echo "<script>
                     alert('Login berhasil, selamat datang {$user['nama']}!');
-                    window.location.href = 'dashboard_user.php';
+                    window.location.href = 'overview.php';
                 </script>";
                 $stmt->close();
                 $conn->close();

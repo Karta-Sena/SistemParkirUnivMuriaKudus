@@ -151,12 +151,11 @@ $conn->close();
         <img src="Lambang UMK.png" alt="Logo UMK" class="logo"
              onerror="this.src='https://placehold.co/130x40/ffffff/6a89cc?text=Logo+UMK&font=sans-serif'">
 
-        <?php if ($error_message): ?>
-            <div id="form-status-message" class="error" style="display: block;">
-                <?= htmlspecialchars($error_message) ?>
-            </div>
-        <?php endif; ?>
-
+        <div id="form-status-message" 
+     class="<?= !empty($error_message) ? 'error' : '' ?>" 
+     style="display: <?= !empty($error_message) ? 'block' : 'none' ?>;">
+    <?= htmlspecialchars($error_message) ?>
+</div>
         <div class="form-group">
             <label for="role" class="sr-only">Role</label>
             <select id="role" name="role" required>

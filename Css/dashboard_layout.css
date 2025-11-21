@@ -1807,4 +1807,24 @@ body.sidebar-collapsed .sidebar-nav .nav-item .nav-icon-svg + .nav-text {
   opacity: 1;
   pointer-events: auto;
 }
+.glass-parent {
+    background: rgba(255, 255, 255, 0.2) !important;
+    border: 1px solid rgba(255, 255, 255, 0.7) !important;
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.3) !important; /* Shadow lebih tebal */
+    backdrop-filter: blur(15px) !important;
+}
 
+/* 4. Perhalus area scanner */
+.scanner-box {
+    border: 2px dashed #cbd5e1 !important; /* Abu-abu soft, bukan hitam */
+    background: #f8fafc; /* Sedikit abu sangat muda di dalam kotak */
+}
+
+/* 5. Percantik Tombol Generate */
+.pill-generate {
+    background: linear-gradient(135deg, #3b82f6, #2563eb) !important; /* Biru gradasi */
+    color: white !important;
+    border: none !important;
+    box-shadow: 0 10px 20px rgba(37, 99, 235, 0.3) !important;
+    letter-spacing: 2px;
+}

@@ -1,3 +1,91 @@
+<?php
+// Pastikan session dimulai sebelum output HTML
+if (session_status() !== PHP_SESSION_ACTIVE) session_start();
+
+// Default placeholder
+$placeholder = 'assets/img/avatar-placeholder.png';
+
+// Ambil data dari session jika tersedia
+$uid = $_SESSION['user_id'] ?? null;
+$displayName = $_SESSION['nama'] ?? null;
+$displayRole = $_SESSION['role'] ?? null;
+$displayAvatar = $_SESSION['avatar'] ?? null;
+
+// Jika session ada user id tapi nama/avatar belum tersedia, ambil dari DB
+if ($uid && (!$displayName || !$displayAvatar)) {
+    if (file_exists(__DIR__ . '/config.php')) {
+        include_once __DIR__ . '/config.php';
+        $stmt = $conn->prepare("SELECT nama, role, avatar FROM users WHERE id = ?");
+        if ($stmt) {
+            $stmt->bind_param("i", $uid);
+            $stmt->execute();
+            $res = $stmt->get_result();
+            $u = $res->fetch_assoc();
+            $stmt->close();
+            if ($u) {
+                $displayName = $displayName ?? $u['nama'];
+                $displayRole = $displayRole ?? $u['role'];
+                $displayAvatar = $displayAvatar ?? $u['avatar'];
+                // persist ke session
+                $_SESSION['nama'] = $displayName;
+                $_SESSION['role'] = $displayRole;
+                $_SESSION['avatar'] = $displayAvatar;
+            }
+        }
+    }
+}
+
+// Resolve avatar path
+$avatarPath = $placeholder;
+if (!empty($displayAvatar)) {
+    // Cek apakah URL
+    if (filter_var($displayAvatar, FILTER_VALIDATE_URL)) {
+        $avatarPath = $displayAvatar;
+    } else {
+        // Cek apakah file ada
+        $candidate = __DIR__ . '/' . $displayAvatar;
+        if (file_exists($candidate)) {
+            $avatarPath = $displayAvatar;
+        }
+    }
+}
+
+$plat_nomor_aktif = '-----';
+
+if ($uid) {
+    if (file_exists(__DIR__ . '/config.php')) {
+        include_once __DIR__ . '/config.php';
+        
+        // 1. Cek apakah sedang parkir? (Ambil dari Log)
+        $stmt_log = $conn->prepare("SELECT status, plat_nomor FROM log_parkir WHERE user_id = ? ORDER BY id DESC LIMIT 1");
+        $stmt_log->bind_param("i", $uid);
+        $stmt_log->execute();
+        $log = $stmt_log->get_result()->fetch_assoc();
+        
+        if (($log['status'] ?? 'keluar') === 'masuk') {
+            // Jika sedang parkir, WAJIB pakai plat yang tercatat
+            $plat_nomor_aktif = $log['plat_nomor'];
+        } else {
+            // Jika tidak, pakai kendaraan yang dipilih (Active Session)
+            $active_vid = $_SESSION['active_vehicle_id'] ?? 0;
+            if ($active_vid > 0) {
+                $stmt_k = $conn->prepare("SELECT plat_nomor FROM kendaraan WHERE id = ? AND user_id = ?");
+                $stmt_k->bind_param("ii", $active_vid, $uid);
+            } else {
+                // Fallback: Ambil kendaraan terakhir
+                $stmt_k = $conn->prepare("SELECT plat_nomor FROM kendaraan WHERE user_id = ? ORDER BY id DESC LIMIT 1");
+                $stmt_k->bind_param("i", $uid);
+            }
+            $stmt_k->execute();
+            $res_k = $stmt_k->get_result()->fetch_assoc();
+            if ($res_k) $plat_nomor_aktif = $res_k['plat_nomor'];
+        }
+    }
+}
+
+// Profile link (self)
+$profileLink = $uid ? "profile.php?id=" . intval($uid) : "profile.php";
+?>
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -13,7 +101,10 @@
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-  <!-- ========== SIDEBAR (DESKTOP) ========== -->
+  <div id="dashboard-data" 
+       data-uid="<?php echo $uid; ?>" 
+       data-plat="<?php echo htmlspecialchars($plat_nomor_aktif); ?>" 
+       style="display:none;"></div>
   <aside class="sidebar" id="sidebar">
     <div class="internal-wrap" aria-hidden="false">
       <button id="btnInSidebar" class="btn-circle" aria-label="Collapse sidebar" title="Collapse sidebar" type="button">
@@ -32,11 +123,11 @@
         <svg class="nav-icon-svg" version="1.1" viewBox="0 0 24 24" xml:space="preserve" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><g id="grid_system"/><g id="_icons"><path d="M7,21h10c2.2,0,4-1.8,4-4v-6.5c0-1.3-0.6-2.4-1.6-3.2l-5-3.8C13,2.5,11,2.5,9.6,3.6l-5,3.7C3.6,8.1,3,9.2,3,10.5V17   C3,19.2,4.8,21,7,21z M5,10.5c0-0.6,0.3-1.2,0.8-1.6l5-3.8c0.4-0.3,0.8-0.4,1.2-0.4s0.8,0.1,1.2,0.4l5,3.8c0.5,0.4,0.8,1,0.8,1.6   V17c0,1.1-0.9,2-2,2H7c-1.1,0-2-0.9-2-2V10.5z"/></g></svg>
         <span class="nav-text">Overview</span>
       </a>
-      <a href="#" class="nav-item">
+      <a href="qrcode.php" class="nav-item">
         <svg class="nav-icon-svg" version="1.1" viewBox="0 0 24 24" xml:space="preserve" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><g><path d="M17,3h-1c-0.6,0-1,0.4-1,1s0.4,1,1,1h1c1.1,0,2,0.9,2,2v1.1c0,0.6,0.4,1,1,1s1-0.4,1-1V7C21,4.8,19.2,3,17,3z"/><path d="M20,15c-0.6,0-1,0.4-1,1v1c0,1.1-0.9,2-2,2h-1c-0.6,0-1,0.4-1,1s0.4,1,1,1h1c2.2,0,4-1.8,4-4v-1C21,15.4,20.6,15,20,15z"/><path d="M8,19H7c-1.1,0-2-0.9-2-2v-1c0-0.6-0.4-1-1-1s-1,0.4-1,1v1c0,2.2,1.8,4,4,4h1c0.6,0,1-0.4,1-1S8.6,19,8,19z"/><path d="M4,9c0.6,0,1-0.4,1-1V7c0-1.1,0.9-2,2-2h1c0.6,0,1-0.4,1-1S8.6,3,8,3H7C4.8,3,3,4.8,3,7v1C3,8.5,3.4,9,4,9z"/><path d="M20,11H4c-0.6,0-1,0.4-1,1s0.4,1,1,1h16c0.6,0,1-0.4,1-1S20.6,11,20,11z"/></g></svg>
         <span class="nav-text">QR Code</span>
       </a>
-      <a href="#" class="nav-item">
+      <a href="kendaraan.php" class="nav-item">
         <svg class="nav-icon-svg" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" viewBox="0 0 24 24" xml:space="preserve"><g id="Layer_1"/><g id="Layer_2"><g><path d="M5,18.85797V20c0,0.55225,0.44775,1,1,1s1-0.44775,1-1v-1h10v1c0,0.55225,0.44775,1,1,1s1-0.44775,1-1v-1.14203   c1.72028-0.44727,3-1.99969,3-3.85797v-1c0-1.5155-0.85706-2.82086-2.10272-3.49939L19.75421,10H20c0.55225,0,1-0.44775,1-1   s-0.44775-1-1-1h-0.81732l-0.59967-2.09863C18.0957,4.19287,16.51416,3,14.7373,3H9.2627   c-1.77686,0-3.3584,1.19287-3.8457,2.90088L4.8172,8H4C3.44775,8,3,8.44775,3,9s0.44775,1,1,1h0.24573l-0.14301,0.50061   C2.85706,11.17914,2,12.48456,2,14v1C2,16.85828,3.27972,18.41071,5,18.85797z M7.33984,6.4502   C7.58398,5.59619,8.37451,5,9.2627,5h5.47461c0.88818,0,1.67871,0.59619,1.92285,1.45068L17.67432,10H6.32568L7.33984,6.4502z    M4,14c0-1.10303,0.89697-2,2-2h12c1.10303,0,2,0.89697,2,2v1c0,1.10303-0.89697,2-2,2H6c-1.10303,0-2-0.89697-2-2V14z"/><circle cx="7" cy="15" r="1"/><circle cx="17" cy="15" r="1"/></g></g></svg>
         <span class="nav-text">Kendaraan</span>
       </a>
@@ -62,16 +153,16 @@
       <svg class="nav-icon-svg" version="1.1" viewBox="0 0 24 24" xml:space="preserve" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><g id="grid_system"/><g id="_icons"><path d="M7,21h10c2.2,0,4-1.8,4-4v-6.5c0-1.3-0.6-2.4-1.6-3.2l-5-3.8C13,2.5,11,2.5,9.6,3.6l-5,3.7C3.6,8.1,3,9.2,3,10.5V17   C3,19.2,4.8,21,7,21z M5,10.5c0-0.6,0.3-1.2,0.8-1.6l5-3.8c0.4-0.3,0.8-0.4,1.2-0.4s0.8,0.1,1.2,0.4l5,3.8c0.5,0.4,0.8,1,0.8,1.6   V17c0,1.1-0.9,2-2,2H7c-1.1,0-2-0.9-2-2V10.5z"/></g></svg>
       <span>Overview</span>
     </a>
-    <a href="#" class="nav-item">
+    <a href="qrcode.php" class="nav-item">
       <svg class="nav-icon-svg" version="1.1" viewBox="0 0 24 24" xml:space="preserve" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><g><path d="M17,3h-1c-0.6,0-1,0.4-1,1s0.4,1,1,1h1c1.1,0,2,0.9,2,2v1.1c0,0.6,0.4,1,1,1s1-0.4,1-1V7C21,4.8,19.2,3,17,3z"/><path d="M20,15c-0.6,0-1,0.4-1,1v1c0,1.1-0.9,2-2,2h-1c-0.6,0-1,0.4-1,1s0.4,1,1,1h1c2.2,0,4-1.8,4-4v-1C21,15.4,20.6,15,20,15z"/><path d="M8,19H7c-1.1,0-2-0.9-2-2v-1c0-0.6-0.4-1-1-1s-1,0.4-1,1v1c0,2.2,1.8,4,4,4h1c0.6,0,1-0.4,1-1S8.6,19,8,19z"/><path d="M4,9c0.6,0,1-0.4,1-1V7c0-1.1,0.9-2,2-2h1c0.6,0,1-0.4,1-1S8.6,3,8,3H7C4.8,3,3,4.8,3,7v1C3,8.5,3.4,9,4,9z"/><path d="M20,11H4c-0.6,0-1,0.4-1,1s0.4,1,1,1h16c0.6,0,1-0.4,1-1S20.6,11,20,11z"/></g></svg>
       <span>QR Code</span>
     </a>
-    <a href="#" class="nav-item">
+    <a href="kendaraan.php" class="nav-item">
       <svg class="nav-icon-svg" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" viewBox="0 0 24 24" xml:space="preserve"><g id="Layer_1"/><g id="Layer_2"><g><path d="M5,18.85797V20c0,0.55225,0.44775,1,1,1s1-0.44775,1-1v-1h10v1c0,0.55225,0.44775,1,1,1s1-0.44775,1-1v-1.14203   c1.72028-0.44727,3-1.99969,3-3.85797v-1c0-1.5155-0.85706-2.82086-2.10272-3.49939L19.75421,10H20c0.55225,0,1-0.44775,1-1   s-0.44775-1-1-1h-0.81732l-0.59967-2.09863C18.0957,4.19287,16.51416,3,14.7373,3H9.2627   c-1.77686,0-3.3584,1.19287-3.8457,2.90088L4.8172,8H4C3.44775,8,3,8.44775,3,9s0.44775,1,1,1h0.24573l-0.14301,0.50061   C2.85706,11.17914,2,12.48456,2,14v1C2,16.85828,3.27972,18.41071,5,18.85797z M7.33984,6.4502   C7.58398,5.59619,8.37451,5,9.2627,5h5.47461c0.88818,0,1.67871,0.59619,1.92285,1.45068L17.67432,10H6.32568L7.33984,6.4502z    M4,14c0-1.10303,0.89697-2,2-2h12c1.10303,0,2,0.89697,2,2v1c0,1.10303-0.89697,2-2,2H6c-1.10303,0-2-0.89697-2-2V14z"/><circle cx="7" cy="15" r="1"/><circle cx="17" cy="15" r="1"/></g></g></svg>
       <span>Kendaraan</span>
     </a>
     <a href="#" class="nav-item">
-      <svg class="nav-icon-svg" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" viewBox="0 0 24 24" xml:space="preserve"><g id="Layer_1"/><g id="Layer_2"><g><path d="M3.8281,16.2427l3.9297,3.9287c1.1328,1.1333,2.6396,1.7573,4.2422,1.7573s3.1094-0.624,4.2422-1.7573l3.9297-3.9287   c2.3389-2.3394,2.3389-6.146,0-8.4854l-3.9297-3.9287C15.1094,2.6953,13.6025,2.0713,12,2.0713s-3.1094,0.624-4.2422,1.7573   L3.8281,7.7573C1.4893,10.0967,1.4893,13.9033,3.8281,16.2427z M5.2422,9.1714l3.9297-3.9287   C9.9277,4.4873,10.9316,4.0713,12,4.0713s2.0723,0.416,2.8281,1.1714l3.9297,3.9287c1.5596,1.5596,1.5596,4.0977,0,5.6572   l-3.9297,3.9287c-1.5117,1.5107-4.1445,1.5107-5.6563,0l-3.9297-3.9287C3.6826,13.269,3.6826,10.731,5.2422,9.1714z"/><path d="M10.5996,17c0.5527,0,1-0.4478,1-1v-2.2002H13c1.875,0,3.4004-1.5254,3.4004-3.3999S14.875,7,13,7h-2.4004   c-0.5527,0-1,0.4478-1,1v4.7998V16C9.5996,16.5522,10.0469,17,10.5996,17z M14.4004,10.3999c0,0.772-0.6279,1.3999-1.4004,1.3999   h-1.4004V9H13C13.7725,9,14.4004,9.6279,14.4004,10.3999z"/></g></g></svg>
+      <svg class="nav-icon-svg" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" viewBox="0 0 24 24" xml:space="preserve"><g id="Layer_1"/><g id="Layer_2"><g><path d="M3.8281,16.2427l3.9297,3.9287c1.1328,1.1333,2.6396,1.7573,4.2422,1.7573s3.1094-0.624,4.2422-1.7573l3.9297-3.9287   c2.3389-2.3394,2.3389-6.146,0-8.4854l-3.9297-3.9287C15.1094,2.6953,13.6025,2.0713,12,2.0713s-3.1094,0.624-4.2422,1.7573   L3.8281,7.7573C1.4893,10.0967,1.4893,13.9033,3.8281,16.2427z M5.2422,9.1714l3.9297-3.9287   C9.9277,4.4873,10.9316,4.0713,12,4.0713s2.0723,0.416,2.8281,1.1714l3.9297,3.9287c1.5596,1.5596,1.5596,4.0977,0,5.6572   l-3.9297,3.9287c-1.5117,1.5107-4.1445,1.5107-5.6563,0l-3.9297-3.9287C3.6826,13269,3.6826,10.731,5.2422,9.1714z"/><path d="M10.5996,17c0.5527,0,1-0.4478,1-1v-2.2002H13c1.875,0,3.4004-1.5254,3.4004-3.3999S14.875,7,13,7h-2.4004   c-0.5527,0-1,0.4478-1,1v4.7998V16C9.5996,16.5522,10.0469,17,10.5996,17z M14.4004,10.3999c0,0.772-0.6279,1.3999-1.4004,1.3999   h-1.4004V9H13C13.7725,9,14.4004,9.6279,14.4004,10.3999z"/></g></g></svg>
       <span>Riwayat Parkir</span>
     </a>
   </nav>
@@ -110,21 +201,21 @@
       </div>
       <div class="user-wrapper">
         <button class="header-child-profile" id="user-btn" aria-label="Profil Pengguna" aria-expanded="false" aria-controls="userDropdown">
-          <img src="assets/img/avatar.png" alt="Avatar" class="avatar-placeholder avatar">
+          <img src="<?php echo htmlspecialchars($avatarPath); ?>" alt="Avatar" class="avatar-placeholder avatar">
           <div class="user-text user-info">
-            <span class="user-name">User Testing</span>
-            <span class="user-role">Mahasiswa</span>
+            <span class="user-name"><?php echo htmlspecialchars($displayName ?? 'Pengguna'); ?></span>
+            <span class="user-role"><?php echo htmlspecialchars($displayRole ?? ''); ?></span>
           </div>
           <span class="caret">▼</span>
         </button>
-        <div class="user-dropdown" id="userDropdown" aria-hidden="true" data-username="User Testing" data-role="Mahasiswa">
+        <div class="user-dropdown" id="userDropdown" aria-hidden="true" data-username="<?php echo htmlspecialchars($displayName ?? 'Pengguna'); ?>" data-role="<?php echo htmlspecialchars($displayRole ?? ''); ?>">
           <div class="dropdown-body">
-            <a href="#" class="dropdown-item">
+            <a href="<?php echo htmlspecialchars($profileLink); ?>" class="dropdown-item">
               <i class="fa-solid fa-user-circle"></i>
               <span>Profil Saya</span>
             </a>
             <div class="dropdown-divider"></div>
-            <a href="#" class="dropdown-item danger">
+            <a href="logout.php" class="dropdown-item danger">
               <i class="fa-solid fa-sign-out-alt"></i>
               <span>Keluar</span>
             </a>
@@ -155,16 +246,16 @@
       </div>
       <div class="user-wrapper">
         <button class="header-child-button" aria-label="Profil Pengguna" id="user-btn-mobile">
-          <div class="avatar-placeholder-mobile" role="img" aria-label="Avatar"></div>
+          <img src="<?php echo htmlspecialchars($avatarPath); ?>" alt="Avatar" class="avatar-placeholder-mobile" style="width:36px;height:36px;border-radius:50%;object-fit:cover;">
         </button>
-        <div class="user-dropdown" id="userDropdownMobile" aria-hidden="true" data-username="User Testing" data-role="Mahasiswa">
+        <div class="user-dropdown" id="userDropdownMobile" aria-hidden="true" data-username="<?php echo htmlspecialchars($displayName ?? 'Pengguna'); ?>" data-role="<?php echo htmlspecialchars($displayRole ?? ''); ?>">
           <div class="dropdown-body">
-            <a href="#" class="dropdown-item">
+            <a href="<?php echo htmlspecialchars($profileLink); ?>" class="dropdown-item">
               <i class="fa-solid fa-user-circle"></i>
               <span>Profil Saya</span>
             </a>
             <div class="dropdown-divider"></div>
-            <a href="#" class="dropdown-item danger">
+            <a href="logout.php" class="dropdown-item danger">
               <i class="fa-solid fa-sign-out-alt"></i>
               <span>Keluar</span>
             </a>
@@ -179,18 +270,68 @@
     <div class="page-content">
       <div class="main-parent-container">
         <section class="dashboard">
-          <article class="card card-qr">
-            <div class="card-header">
-              <div class="card-title">
-                <strong>QR CODE</strong>
-                <span class="status-label">Status QR: (-----)</span>
-              </div>
-              <button class="card-icon-btn" id="qrRefreshBtn" aria-label="refresh QR">
-                ⟳
-              </button>
+          <article class="card card-qr" style="overflow: visible; perspective: 1000px; min-height: 260px;">
+    
+    <style>
+        .ov-flip-container { width: 100%; height: 100%; position: relative; transform-style: preserve-3d; transition: transform 0.6s; }
+        .ov-flip-inner { position: relative; width: 100%; height: 100%; text-align: center; transform-style: preserve-3d; }
+        .ov-face {
+            position: absolute; width: 100%; height: 100%; backface-visibility: hidden;
+            border-radius: 16px; display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            background: #ffffff; border: 1px solid #e5e7eb;
+            top: 0; left: 0; right: 0; bottom: 0;
+        }
+        .ov-back { transform: rotateY(180deg); background: #f0fdf4; border-color: #bbf7d0; }
+        .ov-btn {
+            margin-top: 12px; padding: 8px 20px; border-radius: 50px;
+            font-size: 0.75rem; font-weight: 700; border: none; cursor: pointer;
+            display: flex; align-items: center; gap: 6px; transition: all 0.2s;
+            box-shadow: 0 4px 10px rgba(37, 99, 235, 0.1);
+        }
+        .ov-btn-gen { background: #2563eb; color: white; }
+        .ov-btn-gen:hover { background: #1d4ed8; transform: translateY(-2px); }
+        .ov-btn-scan { background: #22c55e; color: white; cursor: default; }
+    </style>
+
+    <div class="card-header">
+        <div class="card-title">
+            <strong>QR ACCESS</strong>
+            <span id="ovStatusLabel" style="font-size: 10px; margin-left: 8px; padding: 2px 6px; background: #f1f5f9; border-radius: 4px; color: #64748b;">Inactive</span>
+        </div>
+        <button class="card-icon-btn" id="ovRefreshBtn" aria-label="refresh">⟳</button>
+    </div>
+
+    <div class="card-content-qr" style="padding: 10px; height: 180px; position: relative;">
+        
+        <div class="ov-flip-container" id="ovFlipCard">
+            
+            <div class="ov-face ov-front">
+                <div id="ovPlaceholder" style="text-align:center;">
+                    <i class="fa-solid fa-qrcode" style="font-size: 3rem; color: #cbd5e1; margin-bottom: 8px;"></i>
+                    <div style="font-size:0.8rem; color:#94a3b8;">Tap to Generate</div>
+                </div>
+                
+                <div id="ovQrImgFront" style="display:none; width: 120px; height: 120px;"></div>
+                
+                <button class="ov-btn ov-btn-gen" id="ovBtnGenerate">
+                    <i class="fa-solid fa-bolt"></i> GENERATE
+                </button>
             </div>
-            <div class="card-content-qr" id="qrBox">[ QR CODE ]</div>
-          </article>
+
+            <div class="ov-face ov-back">
+                <div style="font-size: 0.7rem; font-weight: 800; color: #15803d; margin-bottom: 5px;">TERPARKIR</div>
+                
+                <div id="ovQrImgBack" style="width: 120px; height: 120px;"></div>
+                
+                <div class="ov-btn" style="background: #dcfce7; color: #166534; box-shadow:none; cursor:default;">
+                    <i class="fa-solid fa-check-circle"></i> AKTIF
+                </div>
+            </div>
+
+        </div>
+    </div>
+</article>
           <article class="card card-lokasi">
             <div class="card-content">
               <h3 class="card-title card-title-lokasi">Lokasi Parkir Saat Ini</h3>
