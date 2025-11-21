@@ -1,7 +1,7 @@
 <?php
 // FILE: Scan_qrcode.php (Menggunakan struktur yang Anda sukai, dengan eksternal JS)
 session_start();
-include 'config.php'; 
+include '../config.php'; 
 
 // === 1. PROTEKSI SESI ===
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'petugas') {
@@ -35,7 +35,7 @@ if (isset($conn)) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Scanner Parkir - <?php echo htmlspecialchars($nama_petugas); ?></title> 
-    <link rel="stylesheet" href="Css/dashboard_layout.css"> 
+    <link rel="stylesheet" href="dashboard_petugas.css"> 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"> 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
     
@@ -47,7 +47,7 @@ if (isset($conn)) {
             --bg-content: #FFFFFF; 
             --shadow-light: 0 4px 15px rgba(0, 0, 0, 0.1);
         }
-        body { background-color: #f4f6f9; font-family: 'Poppins', sans-serif; } 
+        body { background-color: #f4f6f9; font-family: 'Manrope', sans-serif; } 
         
         /* === 1. TOMBOL KEMBALI (Lebih Rapi) === */
         .back-link-container {
@@ -190,7 +190,7 @@ if (isset($conn)) {
 <body>
     
     <div class="back-link-container">
-        <a href="dashboard_petugas_parkir.php" class="btn-back-dashboard">
+        <a href="dashboard_petugas.php" class="btn-back-dashboard">
             <i class="fa-solid fa-arrow-left"></i> Kembali ke Dashboard
         </a>
     </div>
@@ -230,17 +230,6 @@ if (isset($conn)) {
                     required
                 >
             </div>
-            <div class="form-group">
-                <label for="warna_kendaraan">Warna Kendaraan</label>
-                <input 
-                    type="text" 
-                    id="warna_kendaraan" 
-                    name="warna_kendaraan" 
-                    placeholder="Warna Kendaraan" 
-                    readonly 
-                    required
-                >
-            </div>
             
             <input type="hidden" name="petugas_id" value="<?php echo htmlspecialchars($petugas_id); ?>">
             <input type="hidden" name="action" id="action_type">
@@ -256,6 +245,6 @@ if (isset($conn)) {
         </form>
     </div>
     
-    <script src="Js/scanner_logic.js"></script> 
+    <script src="scanner_logic.js"></script> 
 </body>
 </html>

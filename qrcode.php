@@ -40,6 +40,8 @@ $displayAvatar = $_SESSION['avatar'] ?? null;
 $plat          = '-----';
 $stnk          = '-----';
 $status_parkir = 'keluar'; 
+// --- PERBAIKAN 1: Inisialisasi variabel hasVehicle ---
+$hasVehicle    = false; 
 
 // Ambil Data Terbaru
 if (file_exists(__DIR__ . '/config.php'))
@@ -107,6 +109,8 @@ if (file_exists(__DIR__ . '/config.php'))
         if ($kendaraan) {
             $plat = $kendaraan['plat_nomor'];
             $stnk = $kendaraan['no_stnk'];
+            // --- PERBAIKAN 2: Set hasVehicle jadi true jika data ketemu ---
+            $hasVehicle = true;
         }
     }
 
@@ -135,7 +139,7 @@ $profileLink = "profile.php?id=" . intval($uid);
   
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@100..900&display=swap" rel="stylesheet">
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
 
@@ -256,7 +260,7 @@ $profileLink = "profile.php?id=" . intval($uid);
     .scanner-box {
         position: relative; width: 220px; height: 220px; background: #fff; border-radius: 24px;
         display: flex; justify-content: center; align-items: center; 
-        margin: 10px 0 30px 0; /* Jarak bawah diperbesar agar Pill tidak nempel */
+        margin: 10px 0 10px 0; /* Jarak bawah diperbesar agar Pill tidak nempel */
         
         /* Single Dashed Border Langsung di Box */
         border: 2px dashed #cbd5e1; 
@@ -288,13 +292,31 @@ $profileLink = "profile.php?id=" . intval($uid);
     }
 
     /* QR Image & Info */
-    .qr-target img { width: 170px; height: 170px; border-radius: 12px; border: 3px solid #1e293b; }
+    .qr-target {
+        width: 100%;
+        height: 100%;
+        min-height: 160px; 
+        justify-content: center;
+        align-items: center;
+        /* Kita sembunyikan via inline style HTML saja, jangan di CSS global */
+    }
+
+    /* REVISI: Pastikan gambar punya background putih agar tidak transparan */
+    .qr-target img {
+        width: 160px !important;
+        height: 160px !important;
+        border-radius: 12px;
+        border: 3px solid #1e293b;
+        background: #ffffff; /* Wajib putih */
+        display: block;
+        object-fit: contain;
+    }
     
     .info-section { width: 100%; text-align: left; }
     .info-group { margin-bottom: 10px; }
     .info-label { display: block; font-size: 0.65rem; color: #64748b; text-transform: uppercase; letter-spacing: 1px; font-weight: 700; margin-bottom: 4px; }
     .info-val { display: block; font-size: 1rem; color: #1e293b; font-weight: 700; }
-    .font-mono { font-family: 'Space Mono', monospace; letter-spacing: -0.5px; }
+    .font-mono { font-family: 'Geist Mono', monospace; letter-spacing: -0.5px; }
     .card-footer { margin-top: auto; font-size: 0.65rem; color: #94a3b8; margin-bottom: 5px; }
 
     /* Mobile Fixes */
@@ -356,7 +378,7 @@ $profileLink = "profile.php?id=" . intval($uid);
         <svg class="nav-icon-svg" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" viewBox="0 0 24 24" xml:space="preserve"><g id="Layer_1"/><g id="Layer_2"><g><path d="M5,18.85797V20c0,0.55225,0.44775,1,1,1s1-0.44775,1-1v-1h10v1c0,0.55225,0.44775,1,1,1s1-0.44775,1-1v-1.14203   c1.72028-0.44727,3-1.99969,3-3.85797v-1c0-1.5155-0.85706-2.82086-2.10272-3.49939L19.75421,10H20c0.55225,0,1-0.44775,1-1   s-0.44775-1-1-1h-0.81732l-0.59967-2.09863C18.0957,4.19287,16.51416,3,14.7373,3H9.2627   c-1.77686,0-3.3584,1.19287-3.8457,2.90088L4.8172,8H4C3.44775,8,3,8.44775,3,9s0.44775,1,1,1h0.24573l-0.14301,0.50061   C2.85706,11.17914,2,12.48456,2,14v1C2,16.85828,3.27972,18.41071,5,18.85797z M7.33984,6.4502   C7.58398,5.59619,8.37451,5,9.2627,5h5.47461c0.88818,0,1.67871,0.59619,1.92285,1.45068L17.67432,10H6.32568L7.33984,6.4502z    M4,14c0-1.10303,0.89697-2,2-2h12c1.10303,0,2,0.89697,2,2v1c0,1.10303-0.89697,2-2,2H6c-1.10303,0-2-0.89697-2-2V14z"/><circle cx="7" cy="15" r="1"/><circle cx="17" cy="15" r="1"/></g></g></svg>
         <span class="nav-text">Kendaraan</span>
       </a>
-      <a href="#" class="nav-item">
+      <a href="riwayat_parkir.php" class="nav-item">
         <svg class="nav-icon-svg" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" viewBox="0 0 24 24" xml:space="preserve"><g id="Layer_1"/><g id="Layer_2"><g><path d="M3.8281,16.2427l3.9297,3.9287c1.1328,1.1333,2.6396,1.7573,4.2422,1.7573s3.1094-0.624,4.2422-1.7573l3.9297-3.9287   c2.3389-2.3394,2.3389-6.146,0-8.4854l-3.9297-3.9287C15.1094,2.6953,13.6025,2.0713,12,2.0713s-3.1094,0.624-4.2422,1.7573   L3.8281,7.7573C1.4893,10.0967,1.4893,13.9033,3.8281,16.2427z M5.2422,9.1714l3.9297-3.9287   C9.9277,4.4873,10.9316,4.0713,12,4.0713s2.0723,0.416,2.8281,1.1714l3.9297,3.9287c1.5596,1.5596,1.5596,4.0977,0,5.6572   l-3.9297,3.9287c-1.5117,1.5107-4.1445,1.5107-5.6563,0l-3.9297-3.9287C3.6826,13.269,3.6826,10.731,5.2422,9.1714z"/><path d="M10.5996,17c0.5527,0,1-0.4478,1-1v-2.2002H13c1.875,0,3.4004-1.5254,3.4004-3.3999S14.875,7,13,7h-2.4004   c-0.5527,0-1,0.4478-1,1v4.7998V16C9.5996,16.5522,10.0469,17,10.5996,17z M14.4004,10.3999c0,0.772-0.6279,1.3999-1.4004,1.3999   h-1.4004V9H13C13.7725,9,14.4004,9.6279,14.4004,10.3999z"/></g></g></svg>
         <span class="nav-text">Riwayat Parkir</span>
       </a>
@@ -384,7 +406,7 @@ $profileLink = "profile.php?id=" . intval($uid);
       <svg class="nav-icon-svg" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" viewBox="0 0 24 24" xml:space="preserve"><g id="Layer_1"/><g id="Layer_2"><g><path d="M5,18.85797V20c0,0.55225,0.44775,1,1,1s1-0.44775,1-1v-1h10v1c0,0.55225,0.44775,1,1,1s1-0.44775,1-1v-1.14203   c1.72028-0.44727,3-1.99969,3-3.85797v-1c0-1.5155-0.85706-2.82086-2.10272-3.49939L19.75421,10H20c0.55225,0,1-0.44775,1-1   s-0.44775-1-1-1h-0.81732l-0.59967-2.09863C18.0957,4.19287,16.51416,3,14.7373,3H9.2627   c-1.77686,0-3.3584,1.19287-3.8457,2.90088L4.8172,8H4C3.44775,8,3,8.44775,3,9s0.44775,1,1,1h0.24573l-0.14301,0.50061   C2.85706,11.17914,2,12.48456,2,14v1C2,16.85828,3.27972,18.41071,5,18.85797z M7.33984,6.4502   C7.58398,5.59619,8.37451,5,9.2627,5h5.47461c0.88818,0,1.67871,0.59619,1.92285,1.45068L17.67432,10H6.32568L7.33984,6.4502z    M4,14c0-1.10303,0.89697-2,2-2h12c1.10303,0,2,0.89697,2,2v1c0,1.10303-0.89697,2-2,2H6c-1.10303,0-2-0.89697-2-2V14z"/><circle cx="7" cy="15" r="1"/><circle cx="17" cy="15" r="1"/></g></g></svg>
       <span>Kendaraan</span>
     </a>
-    <a href="#" class="nav-item">
+    <a href="riwayat_parkir.php" class="nav-item">
       <svg class="nav-icon-svg" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" viewBox="0 0 24 24" xml:space="preserve"><g id="Layer_1"/><g id="Layer_2"><g><path d="M3.8281,16.2427l3.9297,3.9287c1.1328,1.1333,2.6396,1.7573,4.2422,1.7573s3.1094-0.624,4.2422-1.7573l3.9297-3.9287   c2.3389-2.3394,2.3389-6.146,0-8.4854l-3.9297-3.9287C15.1094,2.6953,13.6025,2.0713,12,2.0713s-3.1094,0.624-4.2422,1.7573   L3.8281,7.7573C1.4893,10.0967,1.4893,13.9033,3.8281,16.2427z M5.2422,9.1714l3.9297-3.9287   C9.9277,4.4873,10.9316,4.0713,12,4.0713s2.0723,0.416,2.8281,1.1714l3.9297,3.9287c1.5596,1.5596,1.5596,4.0977,0,5.6572   l-3.9297,3.9287c-1.5117,1.5107-4.1445,1.5107-5.6563,0l-3.9297-3.9287C3.6826,13.269,3.6826,10.731,5.2422,9.1714z"/><path d="M10.5996,17c0.5527,0,1-0.4478,1-1v-2.2002H13c1.875,0,3.4004-1.5254,3.4004-3.3999S14.875,7,13,7h-2.4004   c-0.5527,0-1,0.4478-1,1v4.7998V16C9.5996,16.5522,10.0469,17,10.5996,17z M14.4004,10.3999c0,0.772-0.6279,1.3999-1.4004,1.3999   h-1.4004V9H13C13.7725,9,14.4004,9.6279,14.4004,10.3999z"/></g></g></svg>
       <span>Riwayat Parkir</span>
     </a>
@@ -508,24 +530,54 @@ $profileLink = "profile.php?id=" . intval($uid);
 
                               <div class="scanner-box">
     
-                                  <div id="qr-code-front" class="qr-target"></div>
-                                  <div id="qr-code-back" class="qr-target" style="display:none;"></div>
-
-                                  <div id="no-vehicle-error" style="display:none; text-align:center; padding: 25px;">
-                                      <i class="fa-solid fa-triangle-exclamation" style="font-size: 3rem; color: #f97316; margin-bottom: 15px;"></i>
-                                      <p style="font-weight: 700; color: #cc6300; font-size: 1rem; margin-bottom: 5px;">DATA KENDARAAN KOSONG</p>
-                                      <p style="font-size: 0.75rem; color: #64748b;">Silakan pilih atau tambahkan kendaraan.</p>
-                                  </div>
-                                  
-                                  <div id="placeholder-front">
-                                      <i class="fa-solid fa-fingerprint" style="font-size: 2rem; display:block; margin-bottom:10px; opacity:0.5; color: var(--primary-blue);"></i>
-                                      TAP TO GENERATE
-                                  </div>
-                                  
-                                  <div id="actionBtn" class="action-pill pill-generate">
-                                      <i class="fa-solid fa-qrcode"></i> GENERATE
-                                  </div>
-                              </div>
+    <?php if ($hasVehicle): ?>
+        <div id="qr-code-front" class="qr-target" style="display: none;"></div>
+        
+        <div id="placeholder-front" style="text-align: center; color: #94a3b8; font-size: 0.8rem;">
+            <i class="fa-solid fa-fingerprint" style="font-size: 2rem; display:block; margin-bottom:10px; opacity:0.5; color: var(--primary-blue);"></i>
+            TAP TO GENERATE
+        </div>
+        
+        <div id="no-vehicle-error" style="display: none !important;"></div>
+        
+        <div id="actionBtn" class="action-pill pill-generate" style="cursor: pointer;">
+            <i class="fa-solid fa-qrcode"></i> GENERATE
+        </div>
+        
+    <?php else: ?>
+        <div id="qr-code-front" class="qr-target" style="display: none !important;"></div>
+        
+        <div id="placeholder-front" style="display: none !important;"></div>
+        
+        <div id="no-vehicle-error" style="
+            display: flex !important;
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            background-color: #ffffff;
+            border-radius: 20px;
+            z-index: 10;
+        ">
+            <i class="fa-solid fa-triangle-exclamation" style="font-size: 3rem; color: #f97316; margin-bottom: 15px;"></i>
+            <p style="font-weight: 700; color: #cc6300; font-size: 1rem; margin-bottom: 5px; text-align: center;">DATA KENDARAAN KOSONG</p>
+            <p style="font-size: 0.75rem; color: #64748b; text-align: center;">Silakan pilih atau tambahkan kendaraan.</p>
+        </div>
+        
+        <div id="actionBtn" class="action-pill" style="
+            background: #94a3b8 !important;
+            cursor: not-allowed !important;
+            box-shadow: none !important;
+            pointer-events: none !important;
+        ">
+            <i class="fa-solid fa-ban"></i> NO VEHICLE
+        </div>
+        
+    <?php endif; ?>
+    
+</div>
 
                               <div class="card-divider"></div>
 
@@ -598,14 +650,12 @@ $profileLink = "profile.php?id=" . intval($uid);
   </main>
   
   <script src="Js/dashboard_main.js"></script>
-  
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
   <script>
-      window.userId = "<?php echo $uid; ?>";
-      window.initialStatus = "<?php echo $status_parkir; ?>";
-      // Tambahkan ini: Kirim data plat nomor ke JS
-      window.platNomor = "<?php echo $plat; ?>"; 
+      // Gunakan json_encode agar tipe data & string aman
+      window.userId = <?php echo json_encode((string)$uid); ?>;
+      window.initialStatus = <?php echo json_encode((string)$status_parkir); ?>;
+      window.platNomor = <?php echo json_encode(trim((string)$plat)); ?>; // Trim spasi
   </script>
 
   <script src="Js/qrcode_logic.js?v=<?php echo time(); ?>"></script>

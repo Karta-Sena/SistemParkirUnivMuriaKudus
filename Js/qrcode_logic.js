@@ -1,60 +1,69 @@
-// ============================================================
-// FILE: Js/qrcode_logic.js
-// VERSI: Final + Validasi Kendaraan (Anti-Generate Tanpa Plat)
-// ============================================================
-
 document.addEventListener("DOMContentLoaded", function() {
     
-    // --- 1. SETUP ELEMEN ---
+    // --- SETUP ---
     const btnGenerate = document.getElementById('actionBtn');
     const flipCard = document.getElementById('flipCard');
     const qrFront = document.getElementById('qr-code-front');
     const qrBack = document.getElementById('qr-code-back');
     const placeholderFront = document.getElementById('placeholder-front');
-    const scannerBox = document.querySelector('.scanner-box');
     const swingEl = document.getElementById('swingElement');
-    
-    // Elemen Error Baru (Harus dicari di DOM)
     const noVehicleErrorDiv = document.getElementById('no-vehicle-error'); 
     
-    // Ambil Data dari PHP
-    const userId = window.userId || '0';
-    const initialStatus = window.initialStatus || 'keluar';
-    const currentPlat = window.platNomor || '-----'; 
-    const QR_SIZE = 160;
+    // --- DATA ---
+    const userId = String(window.userId || '0').trim();
+    const initialStatus = (window.initialStatus || 'keluar').trim().toLowerCase();
+    const currentPlat = String(window.platNomor || '').trim();
 
     let isQrGenerated = false;
     let isCardFlipped = false;
+    
+    // Validasi
+    const hasValidVehicle = currentPlat !== '' && currentPlat !== '-----' && currentPlat !== 'null';
+    
+    // =====================================================
+    // FUNGSI RENDER (SOLUSI INTI)
+    // =====================================================
+    function renderQrToElements() {
+        if (!hasValidVehicle) return false;
+        
+        // 1. URL QR (Format Sesuai Overview)
+        const qrString = `PARKIR_UMK:${userId}:${currentPlat}`;
+        const qrUrl = `generate_qr.php?text=${encodeURIComponent(qrString)}&t=${Date.now()}`;
+        
+        // 2. HTML Tag (Paksa ukuran di tag juga)
+        const imgHtml = `<img src="${qrUrl}" alt="QR Parkir" width="160" height="160" style="width:160px; height:160px; border-radius:12px;">`;
 
-    // --- FUNGSI-FUNGSI (Didefinisikan di awal agar bisa dipanggil di mana saja) ---
-
-    // [INIT] Fungsi Fisika Didefinisikan Dulu
-    function initPhysics() {
-        if (swingEl) {
-            function animateSwing(x, y, w, h) {
-                const xPos = (x / w) - 0.5; const yPos = (y / h) - 0.5;
-                gsap.to(swingEl, { duration: 1.5, rotationY: xPos * 40, rotationX: -yPos * 30, rotationZ: xPos * 15, ease: "power2.out", transformPerspective: 1000, transformOrigin: "top center" });
-            }
-            document.addEventListener('mousemove', (e) => { if (window.matchMedia("(hover: hover)").matches) animateSwing(e.clientX, e.clientY, window.innerWidth, window.innerHeight); });
-            document.addEventListener('mouseleave', () => { gsap.to(swingEl, { duration: 2, rotationY: 0, rotationX: 0, rotationZ: 0, ease: "elastic.out(1, 0.3)" }); });
-            document.addEventListener('touchmove', (e) => { const t = e.touches[0]; animateSwing(t.clientX, t.clientY, window.innerWidth, window.innerHeight); }, { passive: true });
-            document.addEventListener('touchend', () => { gsap.to(swingEl, { duration: 2, rotationY: 0, rotationX: 0, rotationZ: 0, ease: "elastic.out(1, 0.3)" }); });
+        // 3. NUCLEAR FIX: Paksa Display Flex menggunakan cssText
+        // Ini akan menimpa inline style 'display: none' di HTML
+        if (qrFront) {
+            qrFront.innerHTML = imgHtml;
+            qrFront.style.cssText = 'display: flex !important; justify-content: center; align-items: center; width: 100%; height: 100%; opacity: 1;';
         }
+        
+        if (qrBack) {
+            qrBack.innerHTML = imgHtml;
+            qrBack.style.cssText = 'display: flex !important; justify-content: center; align-items: center; width: 100%; height: 100%; opacity: 1;';
+        }
+        
+        // 4. HILANGKAN PLACEHOLDER & ERROR
+        if (placeholderFront) placeholderFront.style.setProperty('display', 'none', 'important');
+        if (noVehicleErrorDiv) noVehicleErrorDiv.style.setProperty('display', 'none', 'important');
+        
+        return true;
     }
-    initPhysics(); // Jalankan Fisika segera
 
+    // =====================================================
+    // LOGIKA GENERATE
+    // =====================================================
     function generateQR() {
-        const qrString = `PARKIR_UMK:${userId}`;
-        
-        if(qrFront) { qrFront.innerHTML = ""; new QRCode(qrFront, { text: qrString, width: QR_SIZE, height: QR_SIZE, colorDark : "#111827", colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.H }); }
-        if(qrBack)  { qrBack.innerHTML = "";  new QRCode(qrBack,  { text: qrString, width: QR_SIZE, height: QR_SIZE, colorDark : "#111827", colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.H }); }
-        
-        if(placeholderFront) placeholderFront.style.display = 'none'; 
-        if(noVehicleErrorDiv) noVehicleErrorDiv.style.display = 'none'; // Sembunyikan Error
-        
-        if(btnGenerate) {
-            btnGenerate.className = 'action-pill pill-masuk'; 
-            btnGenerate.innerHTML = '<i class="fa-solid fa-expand"></i> SCAN MASUK';
+        if (!hasValidVehicle) return;
+
+        renderQrToElements();
+
+        // Update Tombol Visual
+        if (btnGenerate) {
+            btnGenerate.className = 'action-pill pill-masuk';
+            btnGenerate.innerHTML = '<i class="fa-solid fa-expand"></i> SIAP SCAN';
             btnGenerate.style.cursor = 'default';
         }
         
@@ -63,18 +72,18 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
     function resetToGenerateMode() {
-        if(qrFront) qrFront.innerHTML = ""; 
-        if(qrBack)  qrBack.innerHTML = "";
+        // Sembunyikan QR
+        if (qrFront) { qrFront.innerHTML = ""; qrFront.style.display = 'none'; }
+        if (qrBack) { qrBack.innerHTML = ""; qrBack.style.display = 'none'; }
         
-        if(placeholderFront) placeholderFront.style.display = 'block'; 
-        if(noVehicleErrorDiv) noVehicleErrorDiv.style.display = 'none'; // Sembunyikan Error
-
-        if(btnGenerate) {
-            btnGenerate.className = 'action-pill pill-generate'; 
-            btnGenerate.innerHTML = '<i class="fa-solid fa-qrcode"></i> GENERATE';
-            btnGenerate.style.cursor = 'pointer';
-            btnGenerate.style.background = ''; // Reset background jika ada style inline
-            btnGenerate.style.boxShadow = '';
+        // Tampilkan Placeholder
+        if (hasValidVehicle && placeholderFront) {
+            placeholderFront.style.display = 'block';
+            if (btnGenerate) {
+                btnGenerate.className = 'action-pill pill-generate';
+                btnGenerate.innerHTML = '<i class="fa-solid fa-qrcode"></i> GENERATE';
+                btnGenerate.style.cursor = 'pointer';
+            }
         }
         
         isQrGenerated = false;
@@ -83,103 +92,123 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
     function flipToBack() {
-        if (isCardFlipped) return;
+        if (!hasValidVehicle) return;
+        if (!isQrGenerated) generateQR();
         gsap.to(flipCard, { duration: 0.8, rotationY: 180, ease: "back.out(1.5)", overwrite: true });
         isCardFlipped = true;
     }
 
     function flipToFront() {
-        if (!isCardFlipped) return;
         gsap.to(flipCard, { duration: 0.8, rotationY: 0, ease: "back.out(1.5)", overwrite: true });
-    }
-
-    // --- 3. VALIDASI KENDARAAN SEBELUM INIT ---
-    if (currentPlat === '-----' || currentPlat === '') {
-    const noVehicleErrorDiv = document.getElementById('no-vehicle-error'); 
-    
-    console.log("⛔ Tidak ada kendaraan terdeteksi. Mematikan fitur QR.");
-    
-    resetToGenerateMode(); // Pastikan bersih (Hapus QR lama)
-    
-    // 1. [FIX] INJECT KONTEN ERROR VISUAL LANGSUNG
-    if (noVehicleErrorDiv) {
-        // Konten sama persis dengan overview (Ikon & Teks Jelas)
-        noVehicleErrorDiv.innerHTML = `<i class="fa-solid fa-triangle-exclamation" style="font-size: 3rem; color: #f97316; margin-bottom: 15px;"></i>
-                                       <p style="font-weight: 700; color: #cc6300; font-size: 1rem; margin-bottom: 5px;">DATA KENDARAAN KOSONG</p>
-                                       <p style="font-size: 0.75rem; color: #64748b;">Silakan pilih atau tambahkan kendaraan.</p>`;
-        noVehicleErrorDiv.style.display = 'flex'; // Tampilkan Error Visual
-    }
-    if(placeholderFront) placeholderFront.style.display = 'none'; // Sembunyikan TAP TO GENERATE
-    
-    // 2. MATIKAN TOMBOL (Style Seragam Gray)
-    if(btnGenerate) {
-        btnGenerate.innerHTML = 'NO VEHICLE'; 
-        btnGenerate.classList.remove('pill-generate', 'pill-masuk'); 
-        btnGenerate.style.background = '#94a3b8'; 
-        btnGenerate.style.backgroundColor = '#94a3b8';
-        btnGenerate.style.cursor = 'not-allowed';
-        btnGenerate.style.boxShadow = 'none';
-        btnGenerate.style.pointerEvents = 'none';
-    }
-    
-    initPhysics(); 
-    return; // Hentikan script
-    }
-
-    // --- 4. LOGIKA INIT (Hanya jalan jika Plat Nomor Ada) ---
-    const isSessionActive = sessionStorage.getItem('qr_active_session') === 'true';
-
-    if (initialStatus === 'masuk') {
-        generateQR();
-        gsap.set(flipCard, { rotationY: 180 });
-        isCardFlipped = true;
-    } 
-    else if (isSessionActive) {
-        generateQR();
-        gsap.set(flipCard, { rotationY: 0 });
-        isCardFlipped = false;
-    } 
-    else {
-        gsap.set(flipCard, { rotationY: 0 });
         isCardFlipped = false;
     }
 
-    // --- 5. EVENT LISTENER ---
-    if(btnGenerate) {
-        btnGenerate.addEventListener('click', (e) => { 
-            e.stopPropagation(); 
-            generateQR(); 
-        });
-    }
-    if(scannerBox) {
-        scannerBox.addEventListener('click', () => { 
-            if (!isQrGenerated) generateQR(); 
-        });
+    // =====================================================
+    // INIT
+    // =====================================================
+    if (hasValidVehicle) {
+        const isSessionActive = sessionStorage.getItem('qr_active_session') === 'true';
+
+        if (initialStatus === 'masuk') {
+            generateQR();
+            gsap.set(flipCard, { rotationY: 180 });
+            isCardFlipped = true;
+        } 
+        else if (isSessionActive) {
+            generateQR();
+            gsap.set(flipCard, { rotationY: 0 });
+        } 
+        else {
+            resetToGenerateMode();
+            gsap.set(flipCard, { rotationY: 0 });
+        }
     }
 
-    // --- 6. POLLING ---
+    // =====================================================
+    // EVENT LISTENERS
+    // =====================================================
+    if (btnGenerate) {
+        btnGenerate.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (!isQrGenerated) generateQR();
+        });
+    }
+    
+    // Lanyard Physics
+    function initPhysics() {
+        if (!swingEl) return;
+
+        // 1. Fungsi Kalkulasi Gerakan (Re-usable)
+        const animateSwing = (clientX, clientY) => {
+            const w = window.innerWidth;
+            const h = window.innerHeight;
+            
+            // Menghitung posisi relatif (-0.5 s/d 0.5)
+            const xPos = (clientX / w) - 0.5;
+            const yPos = (clientY / h) - 0.5;
+
+            gsap.to(swingEl, { 
+                duration: 1.5, 
+                rotationY: xPos * 50,   // Miring Kiri-Kanan (Lebih responsif)
+                rotationX: -yPos * 40,  // Miring Depan-Belakang
+                rotationZ: xPos * 20,   // Miring Z axis
+                ease: "power2.out", 
+                transformPerspective: 1000, 
+                transformOrigin: "top center" 
+            });
+        };
+
+        // 2. Fungsi Reset (Kembali Diam)
+        const resetSwing = () => {
+            gsap.to(swingEl, { 
+                duration: 2.5, 
+                rotationY: 0, 
+                rotationX: 0, 
+                rotationZ: 0, 
+                ease: "elastic.out(1, 0.3)" // Efek memantul saat dilepas
+            });
+        };
+
+        // --- EVENT LISTENERS ---
+
+        // A. DESKTOP (Mouse Move)
+        document.addEventListener('mousemove', (e) => { 
+            if (window.matchMedia("(hover: hover)").matches) {
+                animateSwing(e.clientX, e.clientY);
+            }
+        });
+        document.addEventListener('mouseleave', resetSwing);
+
+        // B. MOBILE (Touch Move)
+        document.addEventListener('touchmove', (e) => { 
+            // Ambil koordinat jari pertama
+            const touch = e.touches[0]; 
+            animateSwing(touch.clientX, touch.clientY);
+        }, { passive: true }); // passive: true agar scroll halaman tetap jalan lancar
+
+        document.addEventListener('touchend', resetSwing);
+    }
+    
+    initPhysics();
+
+    // Polling
     setInterval(() => {
-        if (userId == '0') return;
-        
+        if (userId === '0' || !hasValidVehicle) return;
         fetch(`check_status.php?user_id=${userId}`)
-          .then(res => res.json())
-          .then(data => {
-              if (data.success) {
-                  const dbStatus = data.status_parkir;
-                  
-                  if (dbStatus === 'masuk') { 
-                      if (!isQrGenerated) generateQR(); 
-                      if (!isCardFlipped) flipToBack(); 
-                  }
-                  else { 
-                      if (isCardFlipped) { 
-                          flipToFront();
-                          setTimeout(resetToGenerateMode, 800); 
-                      }
-                  }
-              }
-          })
-          .catch(err => console.error(err));
-    }, 3000); 
-    
+            .then(res => res.json())
+            .then(data => {
+                if (!data.success) return;
+                const dbStatus = (data.status_parkir || '').toLowerCase();
+                
+                if (dbStatus === 'masuk') {
+                    if (!isQrGenerated) generateQR();
+                    if (!isCardFlipped) flipToBack();
+                } else if (dbStatus === 'keluar') {
+                    if (isCardFlipped) {
+                        flipToFront();
+                        setTimeout(resetToGenerateMode, 800);
+                    }
+                }
+            }).catch(console.error);
+    }, 3000);
 });

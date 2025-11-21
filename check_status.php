@@ -1,11 +1,13 @@
 <?php
-// check_status.php (robust) - menerima ?user_id=123 atau fallback ke session
+// FILE: check_status.php
+// REVISI: Menggunakan tabel 'log_parkir' agar konsisten dengan qrcode.php
+
 header('Content-Type: application/json; charset=utf-8');
 
-// mulai session jika belum
+// 1. Mulai session
 if (session_status() !== PHP_SESSION_ACTIVE) session_start();
 
-// include config (gunakan path sesuai project Anda)
+// 2. Koneksi Database
 $cfg = __DIR__ . '/config.php';
 if (!file_exists($cfg)) {
     echo json_encode(['success' => false, 'message' => 'config.php tidak ditemukan.']);
@@ -13,7 +15,7 @@ if (!file_exists($cfg)) {
 }
 require_once $cfg;
 
-// cari user_id dari query string dulu, kalau tidak ada pakai session
+// 3. Tentukan User ID (Prioritas: GET -> Session)
 $user_id = null;
 if (isset($_GET['user_id']) && is_numeric($_GET['user_id'])) {
     $user_id = (int) $_GET['user_id'];
@@ -22,40 +24,58 @@ if (isset($_GET['user_id']) && is_numeric($_GET['user_id'])) {
 }
 
 if (!$user_id) {
-    echo json_encode(['success' => false, 'message' => 'User ID tidak diberikan.']);
+    echo json_encode(['success' => false, 'message' => 'User ID tidak ditemukan.']);
     exit;
 }
 
-// cek koneksi db
+// 4. Validasi Koneksi
 if (!isset($conn) || !($conn instanceof mysqli)) {
-    echo json_encode(['success' => false, 'message' => 'Database connection tidak tersedia.']);
+    echo json_encode(['success' => false, 'message' => 'Database connection error.']);
     exit;
 }
 
-// ambil status_parkir dari tabel users (sesuaikan nama kolom)
 try {
-    $stmt = $conn->prepare("SELECT status_parkir FROM users WHERE id = ?");
+    // --- LOGIKA UTAMA (DIPERBARUI) ---
+    // Kita ambil status dari 'log_parkir' urutan terakhir (terbaru).
+    // Ini memastikan data SAMA PERSIS dengan tampilan awal qrcode.php.
+    
+    $query = "SELECT status FROM log_parkir WHERE user_id = ? ORDER BY id DESC LIMIT 1";
+    
+    $stmt = $conn->prepare($query);
     if (!$stmt) throw new Exception('Prepare failed: ' . $conn->error);
+    
     $stmt->bind_param("i", $user_id);
+    
     if (!$stmt->execute()) throw new Exception('Execute failed: ' . $stmt->error);
+    
     $res = $stmt->get_result();
     $row = $res ? $res->fetch_assoc() : null;
     $stmt->close();
 
-    if (!$row) {
-        echo json_encode(['success' => false, 'message' => 'User tidak ditemukan.']);
-        exit;
+    // Jika tidak ada history log sama sekali, anggap user sedang 'keluar' (di luar area)
+    $raw_status = $row ? $row['status'] : 'keluar';
+
+    // 5. Normalisasi Data (Huruf kecil & Trim)
+    $clean_status = strtolower(trim((string)$raw_status));
+    
+    // Mapping berbagai kemungkinan input DB ke standard 'masuk'/'keluar'
+    // Sesuaikan jika di DB Anda pakai 'IN'/'OUT' atau '1'/'0'
+    if ($clean_status === 'masuk' || $clean_status === 'in' || $clean_status === '1') {
+        $final_status = 'masuk';
+    } else {
+        $final_status = 'keluar';
     }
 
-    // normalisasi nilai (lowercase, trim)
-    $raw = strtolower(trim((string)$row['status_parkir']));
-    // jika DB memakai 'Masuk'/'Keluar' atau variasi, ubah ke 'masuk'/'keluar'
-    $status = ($raw === 'masuk' || $raw === 'm' || $raw === 'in') ? 'masuk' : 'keluar';
-
-    echo json_encode(['success' => true, 'status_parkir' => $status]);
+    // 6. Kirim Response JSON
+    echo json_encode([
+        'success' => true, 
+        'status_parkir' => $final_status,
+        'source' => 'log_parkir' // Debug info (opsional)
+    ]);
     exit;
 
 } catch (Exception $e) {
-    echo json_encode(['success' => false, 'message' => 'Gagal cek status: ' . $e->getMessage()]);
+    echo json_encode(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
     exit;
 }
+?>

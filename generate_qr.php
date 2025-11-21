@@ -1,38 +1,43 @@
 <?php
+// FILE: generate_qr.php
 
-// Matikan display error agar warning PHP tidak merusak struktur gambar PNG
+// 1. Matikan semua output text/error agar tidak merusak header gambar PNG
 ini_set('display_errors', 0);
 error_reporting(0);
 
-// Pastikan path ke library benar. 
-// Cek apakah folder anda bernama 'phpqrcode' atau 'phpqrcode-master'?
-if (!file_exists("phpqrcode/qrlib.php")) {
-    // Jika library tidak ketemu, kita kirim gambar error sederhana buatan PHP
+// 2. Cek dan Panggil Library
+if (file_exists(__DIR__ . '/phpqrcode.php')) {
+    require_once __DIR__ . '/phpqrcode.php';
+} else {
+    // Fallback: Buat gambar error merah jika library hilang
     header("Content-Type: image/png");
     $im = imagecreate(300, 50);
-    $bg = imagecolorallocate($im, 255, 200, 200);
+    $bg = imagecolorallocate($im, 255, 255, 255);
     $text_color = imagecolorallocate($im, 255, 0, 0);
-    imagestring($im, 5, 5, 15, "Error: Library phpqrcode tidak ditemukan!", $text_color);
+    imagestring($im, 5, 5, 5, "Error: phpqrcode.php missing", $text_color);
     imagepng($im);
-    imagedestroy($im);
     exit;
 }
 
-require_once "phpqrcode/qrlib.php"; 
+// 3. Bersihkan buffer output (PENTING: Hapus spasi/enter tak sengaja)
+// Ini mencegah error "The image cannot be displayed because it contains errors"
+while (ob_get_level()) ob_end_clean();
 
-// Bersihkan output buffer sebelum kirim header gambar
-// Ini menghapus spasi/enter tidak sengaja di file config atau include lain
-if (ob_get_length()) ob_clean();
-
-if(isset($_GET['text'])){
+// 4. Generate QR Code
+if (isset($_GET['text'])) {
     $text = $_GET['text'];
     
-    // Set Header agar browser tahu ini adalah gambar PNG
+    // Set Header agar browser tahu ini gambar PNG
     header("Content-Type: image/png");
     
-    // Render gambar PNG langsung ke output stream
-    // Level: H (High), Ukuran Pixel: 10, Margin: 2
-    QRcode::png($text, false, QR_ECLEVEL_H, 10, 2); 
-    exit; // Penting: Hentikan script di sini agar tidak ada footer HTML yang ikut
+    // Render PNG langsung ke output
+    // Parameter: text, outfile(false=stream), level, size, margin
+    QRcode::png($text, false, QR_ECLEVEL_H, 10, 2);
+    exit;
+} else {
+    // Jika diakses tanpa parameter, kirim gambar kosong transparan 1x1 pixel
+    // atau header 404 agar browser tidak bingung
+    header("HTTP/1.0 404 Not Found");
+    exit;
 }
 ?>

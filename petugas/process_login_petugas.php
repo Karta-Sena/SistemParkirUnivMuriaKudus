@@ -1,36 +1,39 @@
 <?php
-// FILE: process_login_petugas.php (FINAL)
+// FILE: petugas/process_login_petugas.php
 session_start();
+include '../config.php'; 
 
-// Hapus baris ini setelah debugging selesai:
-// ini_set('display_errors', 1);
-// error_reporting(E_ALL);
+$username_input = $_POST['username'] ?? '';
+$password_input = $_POST['password'] ?? '';
 
-include 'config.php';
-
-$username = $_POST['username'] ?? '';
-$password = $_POST['password'] ?? '';
-$role = 'petugas';
-
-if (empty($username) || empty($password)) {
-    $_SESSION['login_error'] = 'Username/Email dan password wajib diisi.';
+// 1. Validasi Input Kosong
+if (empty($username_input) || empty($password_input)) {
+    $_SESSION['login_error'] = 'ID Petugas wajib diisi.';
     header('Location: login_petugas.php');
     exit;
 }
 
-// Cari user di tabel 'users'
-$sql = "SELECT id, nama, password, role FROM users WHERE (email = ? OR nim = ? OR nidn = ?) AND role = ?";
+// 2. ATURAN KHUSUS: ID dan Password harus SAMA PERSIS
+// Ini untuk memastikan petugas "scan" atau ketik ID yang sama
+if ($username_input !== $password_input) {
+    $_SESSION['login_error'] = 'Untuk keamanan cepat, Password harus sama dengan ID Petugas.';
+    header('Location: login_petugas.php');
+    exit;
+}
+
+// 3. Query Khusus Petugas
+// Kita mencari user dimana email (sebagai ID) cocok DAN role-nya WAJIB 'petugas'
+// Akun 'mahasiswa' atau 'dosen' tidak akan ditemukan oleh query ini
+$sql = "SELECT id, nama, password, role FROM users WHERE email = ? AND role = 'petugas' LIMIT 1";
 $stmt = $conn->prepare($sql);
 
 if (!$stmt) {
-    // Fatal error saat prepare query
-    $_SESSION['login_error'] = 'Kesalahan sistem (DB Query error).';
-    $conn->close();
+    $_SESSION['login_error'] = 'Kesalahan sistem database.';
     header('Location: login_petugas.php');
     exit;
 }
 
-$stmt->bind_param("ssss", $username, $username, $username, $role);
+$stmt->bind_param("s", $username_input);
 $stmt->execute();
 $stmt->store_result();
 
@@ -38,28 +41,23 @@ if ($stmt->num_rows === 1) {
     $stmt->bind_result($user_id, $nama, $hashed_password, $role_db);
     $stmt->fetch();
 
-    if (password_verify($password, $hashed_password)) {
-        // Login Sukses
+    // 4. Verifikasi Password (Hashing Tetap Digunakan demi Keamanan Data)
+    if (password_verify($password_input, $hashed_password)) {
+        // LOGIN SUKSES
+        session_regenerate_id(true);
         $_SESSION['user_id'] = $user_id;
-        $_SESSION['nama'] = $nama;
-        $_SESSION['role'] = $role_db;
+        $_SESSION['nama']    = $nama;
+        $_SESSION['role']    = $role_db;
         
-        // Tutup koneksi dan redirect ke dashboard
-        $stmt->close();
-        $conn->close();
-        header('Location: dashboard_petugas_parkir.php');
+        header('Location: dashboard_petugas.php');
         exit;
     }
 }
 
-// Login Gagal (Password salah atau Akun tidak ditemukan)
-$_SESSION['login_error'] = 'Kredensial Petugas tidak valid.';
-
-if (isset($stmt)) $stmt->close();
-if (isset($conn) && $conn->ping()) {
-    $conn->close();
-}
-
+// LOGIN GAGAL
+$_SESSION['login_error'] = 'ID Petugas tidak terdaftar atau salah.';
+$stmt->close();
+$conn->close();
 header('Location: login_petugas.php');
 exit;
 ?>

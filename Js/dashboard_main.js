@@ -187,8 +187,8 @@ document.addEventListener('DOMContentLoaded', function() {
   const ovStatusLabel = document.getElementById('ovStatusLabel');
 
   const dashData = document.getElementById('dashboard-data');
-  const ovUid  = dashData ? dashData.getAttribute('data-uid') : '0';
-  const ovPlat = dashData ? dashData.getAttribute('data-plat') : '-----';
+  const ovUid  = dashData ? (dashData.getAttribute('data-uid') || '0').trim() : '0';
+  const ovPlat = dashData ? (dashData.getAttribute('data-plat') || '').trim() : '-----';
 
   let isOvGenerated = false;
   let isOvFlipped = false; 

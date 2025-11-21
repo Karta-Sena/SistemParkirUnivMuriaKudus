@@ -51,36 +51,96 @@ if (!empty($displayAvatar)) {
 }
 
 $plat_nomor_aktif = '-----';
+$veh_stnk         = '-----';
+$veh_jenis        = '-----';
+$veh_image        = 'Css/Assets/3D Modeling Scooter.png'; // Default gambar motor
 
 if ($uid) {
     if (file_exists(__DIR__ . '/config.php')) {
         include_once __DIR__ . '/config.php';
         
-        // 1. Cek apakah sedang parkir? (Ambil dari Log)
-        $stmt_log = $conn->prepare("SELECT status, plat_nomor FROM log_parkir WHERE user_id = ? ORDER BY id DESC LIMIT 1");
+        // 1. Cek Log Parkir (Apakah User Sedang Parkir?)
+        $query_log = "SELECT l.status, l.plat_nomor, a.kode_area, a.nama_area 
+              FROM log_parkir l 
+              LEFT JOIN area_parkir a ON l.area_id = a.id 
+              WHERE l.user_id = ? 
+              ORDER BY l.id DESC LIMIT 1";
+
+        $stmt_log = $conn->prepare($query_log);
         $stmt_log->bind_param("i", $uid);
         $stmt_log->execute();
         $log = $stmt_log->get_result()->fetch_assoc();
-        
+
+        // Variabel Default Tampilan Lokasi
+        $displayLocCode = '-----';
+        $displayLocName = '';
+        $isParked = false;
+
+        $target_plat = null;
+        $target_id   = 0;
+
         if (($log['status'] ?? 'keluar') === 'masuk') {
-            // Jika sedang parkir, WAJIB pakai plat yang tercatat
-            $plat_nomor_aktif = $log['plat_nomor'];
+            // PRIORITAS 1: Sedang parkir
+            $target_plat = $log['plat_nomor'];
+            
+            // [UPDATE] Set variabel tampilan lokasi
+            $displayLocCode = $log['kode_area'] ?? 'AREA';
+            $displayLocName = $log['nama_area'] ?? '';
+            $isParked = true;
         } else {
-            // Jika tidak, pakai kendaraan yang dipilih (Active Session)
-            $active_vid = $_SESSION['active_vehicle_id'] ?? 0;
-            if ($active_vid > 0) {
-                $stmt_k = $conn->prepare("SELECT plat_nomor FROM kendaraan WHERE id = ? AND user_id = ?");
-                $stmt_k->bind_param("ii", $active_vid, $uid);
-            } else {
-                // Fallback: Ambil kendaraan terakhir
-                $stmt_k = $conn->prepare("SELECT plat_nomor FROM kendaraan WHERE user_id = ? ORDER BY id DESC LIMIT 1");
-                $stmt_k->bind_param("i", $uid);
-            }
+            // PRIORITAS 2: Tidak parkir, ambil session
+            $target_id = $_SESSION['active_vehicle_id'] ?? 0;
+        }
+
+        // 2. Query Detail Kendaraan (Berdasarkan Plat atau ID)
+        $sql_k = "SELECT * FROM kendaraan WHERE user_id = ?";
+        $types = "i";
+        $params = [$uid];
+
+        if ($target_plat) {
+            $sql_k .= " AND plat_nomor = ? LIMIT 1";
+            $types .= "s";
+            $params[] = $target_plat;
+        } elseif ($target_id > 0) {
+            $sql_k .= " AND id = ? LIMIT 1";
+            $types .= "i";
+            $params[] = $target_id;
+        } else {
+            // PRIORITAS 3 (Fallback): Ambil kendaraan terakhir ditambahkan
+            $sql_k .= " ORDER BY id DESC LIMIT 1";
+        }
+
+        $stmt_k = $conn->prepare($sql_k);
+        if ($stmt_k) {
+            $stmt_k->bind_param($types, ...$params);
             $stmt_k->execute();
             $res_k = $stmt_k->get_result()->fetch_assoc();
-            if ($res_k) $plat_nomor_aktif = $res_k['plat_nomor'];
+            
+            if ($res_k) {
+                $plat_nomor_aktif = $res_k['plat_nomor'];
+                $veh_stnk         = $res_k['no_stnk'];
+                $veh_jenis        = ucfirst($res_k['jenis']); // Huruf kapital awal
+                
+                // Ganti gambar jika jenisnya mobil
+                if (strtolower($res_k['jenis']) === 'mobil') {
+                    $veh_image = 'Css/Assets/3D Modeling Car.png';
+                }
+            }
         }
     }
+}
+
+// [BARU] Ambil 3 Riwayat Terakhir untuk Overview
+$history_overview = [];
+if ($uid && isset($conn)) { // $conn sudah ada dari include config.php sebelumnya
+    $stmt_hist = $conn->prepare("SELECT plat_nomor, waktu_masuk, status FROM log_parkir WHERE user_id = ? ORDER BY id DESC LIMIT 3");
+    $stmt_hist->bind_param("i", $uid);
+    $stmt_hist->execute();
+    $res_hist = $stmt_hist->get_result();
+    while ($row = $res_hist->fetch_assoc()) {
+        $history_overview[] = $row;
+    }
+    $stmt_hist->close();
 }
 
 // Profile link (self)
@@ -98,7 +158,7 @@ $profileLink = $uid ? "profile.php?id=" . intval($uid) : "profile.php";
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Geist+Mono:wght@100..900&display=swap" rel="stylesheet">
 </head>
 <body>
   <div id="dashboard-data" 
@@ -131,7 +191,7 @@ $profileLink = $uid ? "profile.php?id=" . intval($uid) : "profile.php";
         <svg class="nav-icon-svg" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" viewBox="0 0 24 24" xml:space="preserve"><g id="Layer_1"/><g id="Layer_2"><g><path d="M5,18.85797V20c0,0.55225,0.44775,1,1,1s1-0.44775,1-1v-1h10v1c0,0.55225,0.44775,1,1,1s1-0.44775,1-1v-1.14203   c1.72028-0.44727,3-1.99969,3-3.85797v-1c0-1.5155-0.85706-2.82086-2.10272-3.49939L19.75421,10H20c0.55225,0,1-0.44775,1-1   s-0.44775-1-1-1h-0.81732l-0.59967-2.09863C18.0957,4.19287,16.51416,3,14.7373,3H9.2627   c-1.77686,0-3.3584,1.19287-3.8457,2.90088L4.8172,8H4C3.44775,8,3,8.44775,3,9s0.44775,1,1,1h0.24573l-0.14301,0.50061   C2.85706,11.17914,2,12.48456,2,14v1C2,16.85828,3.27972,18.41071,5,18.85797z M7.33984,6.4502   C7.58398,5.59619,8.37451,5,9.2627,5h5.47461c0.88818,0,1.67871,0.59619,1.92285,1.45068L17.67432,10H6.32568L7.33984,6.4502z    M4,14c0-1.10303,0.89697-2,2-2h12c1.10303,0,2,0.89697,2,2v1c0,1.10303-0.89697,2-2,2H6c-1.10303,0-2-0.89697-2-2V14z"/><circle cx="7" cy="15" r="1"/><circle cx="17" cy="15" r="1"/></g></g></svg>
         <span class="nav-text">Kendaraan</span>
       </a>
-      <a href="#" class="nav-item">
+      <a href="riwayat_parkir.php" class="nav-item">
         <svg class="nav-icon-svg" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" viewBox="0 0 24 24" xml:space="preserve"><g id="Layer_1"/><g id="Layer_2"><g><path d="M3.8281,16.2427l3.9297,3.9287c1.1328,1.1333,2.6396,1.7573,4.2422,1.7573s3.1094-0.624,4.2422-1.7573l3.9297-3.9287   c2.3389-2.3394,2.3389-6.146,0-8.4854l-3.9297-3.9287C15.1094,2.6953,13.6025,2.0713,12,2.0713s-3.1094,0.624-4.2422,1.7573   L3.8281,7.7573C1.4893,10.0967,1.4893,13.9033,3.8281,16.2427z M5.2422,9.1714l3.9297-3.9287   C9.9277,4.4873,10.9316,4.0713,12,4.0713s2.0723,0.416,2.8281,1.1714l3.9297,3.9287c1.5596,1.5596,1.5596,4.0977,0,5.6572   l-3.9297,3.9287c-1.5117,1.5107-4.1445,1.5107-5.6563,0l-3.9297-3.9287C3.6826,13.269,3.6826,10.731,5.2422,9.1714z"/><path d="M10.5996,17c0.5527,0,1-0.4478,1-1v-2.2002H13c1.875,0,3.4004-1.5254,3.4004-3.3999S14.875,7,13,7h-2.4004   c-0.5527,0-1,0.4478-1,1v4.7998V16C9.5996,16.5522,10.0469,17,10.5996,17z M14.4004,10.3999c0,0.772-0.6279,1.3999-1.4004,1.3999   h-1.4004V9H13C13.7725,9,14.4004,9.6279,14.4004,10.3999z"/></g></g></svg>
         <span class="nav-text">Riwayat Parkir</span>
       </a>
@@ -161,7 +221,7 @@ $profileLink = $uid ? "profile.php?id=" . intval($uid) : "profile.php";
       <svg class="nav-icon-svg" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" viewBox="0 0 24 24" xml:space="preserve"><g id="Layer_1"/><g id="Layer_2"><g><path d="M5,18.85797V20c0,0.55225,0.44775,1,1,1s1-0.44775,1-1v-1h10v1c0,0.55225,0.44775,1,1,1s1-0.44775,1-1v-1.14203   c1.72028-0.44727,3-1.99969,3-3.85797v-1c0-1.5155-0.85706-2.82086-2.10272-3.49939L19.75421,10H20c0.55225,0,1-0.44775,1-1   s-0.44775-1-1-1h-0.81732l-0.59967-2.09863C18.0957,4.19287,16.51416,3,14.7373,3H9.2627   c-1.77686,0-3.3584,1.19287-3.8457,2.90088L4.8172,8H4C3.44775,8,3,8.44775,3,9s0.44775,1,1,1h0.24573l-0.14301,0.50061   C2.85706,11.17914,2,12.48456,2,14v1C2,16.85828,3.27972,18.41071,5,18.85797z M7.33984,6.4502   C7.58398,5.59619,8.37451,5,9.2627,5h5.47461c0.88818,0,1.67871,0.59619,1.92285,1.45068L17.67432,10H6.32568L7.33984,6.4502z    M4,14c0-1.10303,0.89697-2,2-2h12c1.10303,0,2,0.89697,2,2v1c0,1.10303-0.89697,2-2,2H6c-1.10303,0-2-0.89697-2-2V14z"/><circle cx="7" cy="15" r="1"/><circle cx="17" cy="15" r="1"/></g></g></svg>
       <span>Kendaraan</span>
     </a>
-    <a href="#" class="nav-item">
+    <a href="riwayat_parkir.php" class="nav-item">
       <svg class="nav-icon-svg" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" viewBox="0 0 24 24" xml:space="preserve"><g id="Layer_1"/><g id="Layer_2"><g><path d="M3.8281,16.2427l3.9297,3.9287c1.1328,1.1333,2.6396,1.7573,4.2422,1.7573s3.1094-0.624,4.2422-1.7573l3.9297-3.9287   c2.3389-2.3394,2.3389-6.146,0-8.4854l-3.9297-3.9287C15.1094,2.6953,13.6025,2.0713,12,2.0713s-3.1094,0.624-4.2422,1.7573   L3.8281,7.7573C1.4893,10.0967,1.4893,13.9033,3.8281,16.2427z M5.2422,9.1714l3.9297-3.9287   C9.9277,4.4873,10.9316,4.0713,12,4.0713s2.0723,0.416,2.8281,1.1714l3.9297,3.9287c1.5596,1.5596,1.5596,4.0977,0,5.6572   l-3.9297,3.9287c-1.5117,1.5107-4.1445,1.5107-5.6563,0l-3.9297-3.9287C3.6826,13269,3.6826,10.731,5.2422,9.1714z"/><path d="M10.5996,17c0.5527,0,1-0.4478,1-1v-2.2002H13c1.875,0,3.4004-1.5254,3.4004-3.3999S14.875,7,13,7h-2.4004   c-0.5527,0-1,0.4478-1,1v4.7998V16C9.5996,16.5522,10.0469,17,10.5996,17z M14.4004,10.3999c0,0.772-0.6279,1.3999-1.4004,1.3999   h-1.4004V9H13C13.7725,9,14.4004,9.6279,14.4004,10.3999z"/></g></g></svg>
       <span>Riwayat Parkir</span>
     </a>
@@ -320,7 +380,7 @@ $profileLink = $uid ? "profile.php?id=" . intval($uid) : "profile.php";
             </div>
 
             <div class="ov-face ov-back">
-                <div style="font-size: 0.7rem; font-weight: 800; color: #15803d; margin-bottom: 5px;">TERPARKIR</div>
+                <div style="font-size: 0.7rem; font-weight: 800; color: #15803d; margin-bottom: 30px;">TERPARKIR</div>
                 
                 <div id="ovQrImgBack" style="width: 120px; height: 120px;"></div>
                 
@@ -332,30 +392,46 @@ $profileLink = $uid ? "profile.php?id=" . intval($uid) : "profile.php";
         </div>
     </div>
 </article>
-          <article class="card card-lokasi">
-            <div class="card-content">
-              <h3 class="card-title card-title-lokasi">Lokasi Parkir Saat Ini</h3>
-              <div class="lokasi-detail">
-                <span class="lokasi-kode">B1</span>
-                <span class="lokasi-nama">(GEDUNG TEKNIK)</span>
+          <article class="card card-lokasi" style="justify-content: flex-start;">
+              <div class="card-header" style="margin-bottom: 10px;">
+                  <div class="card-title" style="width: 100%; display: flex; justify-content: space-between; align-items: center;">
+                      <strong style="font-family: 'Manrope', sans-serif; font-size: 0.95rem; color: #64748b; letter-spacing: 0.5px;">LOKASI PARKIR SAAT INI</strong>
+                      
+                      <?php if ($isParked): ?>
+                          <span style="color: #166534; background:#dcfce7; padding:4px 8px; border-radius:6px; font-size:0.7rem; font-weight:700; font-family: 'Manrope', sans-serif;">AKTIF</span>
+                      <?php endif; ?>
+                  </div>
               </div>
-            </div>
+
+              <div class="card-content" style="padding-top: 0;">
+                  <div style="display: flex; flex-direction: column;">
+                      <div style="font-family: 'Geist Mono', monospace; font-size: 3.5rem; font-weight: 700; line-height: 1.2; letter-spacing: -1px; color: <?php echo $isParked ? '#EAB308' : '#94a3b8'; ?>;">
+                          <?php echo htmlspecialchars($displayLocCode); ?>
+                      </div>
+                      
+                      <?php if ($isParked): ?>
+                          <div style="font-family: 'Manrope', sans-serif; font-size: 1.1rem; font-weight: 700; color: #EAB308; margin-top: 0px; text-transform: uppercase;">
+                              (<?php echo htmlspecialchars($displayLocName); ?>)
+                          </div>
+                      <?php endif; ?>
+                  </div>
+              </div>
           </article>
           <article class="card card-kendaraan">
             <div class="card-content">
               <h3 class="card-title">Kendaraan Yang Digunakan</h3>
               <div class="vehicle-display">
-                <img src="Css/Assets/3D Modeling Scooter.png" alt="Skuter 3D" class="vehicle-image">
+                <img src="<?php echo htmlspecialchars($veh_image); ?>" alt="Kendaraan 3D" class="vehicle-image">
               </div>
               <div class="vehicle-details-list">
                 <div class="detail-item">
-                  <span>STNK: (-----)</span>
+                  <span>STNK: (<?php echo htmlspecialchars($veh_stnk); ?>)</span>
                 </div>
                 <div class="detail-item">
-                  <span>Plat Nomor: (-----)</span>
+                  <span>Plat Nomor: (<?php echo htmlspecialchars($plat_nomor_aktif); ?>)</span>
                 </div>
                 <div class="detail-item">
-                  <span>Jenis: (-----)</span>
+                  <span>Jenis: (<?php echo htmlspecialchars($veh_jenis); ?>)</span>
                 </div>
               </div>
             </div>
@@ -373,17 +449,29 @@ $profileLink = $uid ? "profile.php?id=" . intval($uid) : "profile.php";
                     </tr>
                   </thead>
                   <tbody>
+                  <?php if (!empty($history_overview)): ?>
+                    <?php foreach ($history_overview as $h): 
+                        // Logika Warna Badge (Hijau=Masuk, Merah=Keluar)
+                        $isMasuk = (strtolower($h['status']) === 'masuk');
+                        $badgeClass = $isMasuk ? 'status-parked' : 'status-out';
+                        $badgeText  = $isMasuk ? 'Terparkir' : 'Keluar';
+                    ?>
                     <tr>
-                      <td>U 1212 T</td>
-                      <td>07:45</td>
-                      <td><span class="status-badge status-out">Keluar</span></td>
+                      <td style="font-family: 'Geist Mono', monospace; font-weight: 600;"><?php echo htmlspecialchars($h['plat_nomor']); ?></td>
+                      <td><?php echo date('H:i', strtotime($h['waktu_masuk'])); ?></td>
+                      <td>
+                        <span class="status-badge <?php echo $badgeClass; ?>">
+                          <?php echo $badgeText; ?>
+                        </span>
+                      </td>
                     </tr>
+                    <?php endforeach; ?>
+                  <?php else: ?>
                     <tr>
-                      <td>H 8787 Z</td>
-                      <td>10:20</td>
-                      <td><span class="status-badge status-parked">Terparkir</span></td>
+                      <td colspan="3" style="text-align:center; padding: 20px; color: #94a3b8;">Belum ada data.</td>
                     </tr>
-                  </tbody>
+                  <?php endif; ?>
+                </tbody>
                 </table>
               </div>
             </div>
