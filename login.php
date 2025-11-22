@@ -1,19 +1,27 @@
 <?php
-session_start();
+// FILE: login.php (FIXED SESSION)
+// Pastikan session_start() SELALU dijalankan pertama kali
+if (session_status() !== PHP_SESSION_ACTIVE) session_start();
+
+// Logika membersihkan sesi Petugas jika masuk ke halaman login user
+if (isset($_SESSION['role']) && $_SESSION['role'] === 'petugas') {
+    session_unset();
+    session_destroy();
+    session_start(); // Mulai sesi baru yang bersih
+}
+
 include 'config.php';
 
-// MODIFIKASI 1: Ambil pesan sukses dari reset password 
+// Ambil pesan sukses (misal dari registrasi)
 $login_message = '';
 if (isset($_SESSION['login_message'])) {
     $login_message = $_SESSION['login_message'];
-    unset($_SESSION['login_message']); // Hapus pesan setelah diambil
+    unset($_SESSION['login_message']);
 }
 
-// LOGIKA UNTUK ALUR DARI REGISTRASI BERDASARKAN RANCANGAN ALUR SISTEM YA GUYS 
 $selectedRole = isset($_GET['role']) ? $_GET['role'] : '';
 $error_message = '';
 
-// LOGIKA UNTUK PROSES LOGIN BERDASARKAN RANCANGAN ALUR SISTEM YA GAYS
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $role = $_POST['role'];
     $userInput = $_POST['user'];
@@ -25,6 +33,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error_message = 'Role, Email/NIM/NIDN, dan Password harus diisi.';
     } else {
         
+        // Query Login
         $sql = "SELECT * FROM users WHERE (email = ? OR nim = ? OR nidn = ?) AND role = ?";
         $stmt = $conn->prepare($sql);
         $stmt->bind_param("ssss", $userInput, $userInput, $userInput, $role);
@@ -35,14 +44,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $user = $result->fetch_assoc();
             
             if (password_verify($password_input, $user['password'])) {
+                // SET SESSION DATA
                 $_SESSION['user_id'] = $user['id'];
                 $_SESSION['role'] = $user['role'];
                 $_SESSION['nama'] = $user['nama'];
+                $_SESSION['avatar'] = $user['avatar']; // Simpan avatar juga biar tidak query ulang
 
+                // Redirect via Javascript (Alert dulu)
                 echo "<script>
                     alert('Login berhasil, selamat datang {$user['nama']}!');
                     window.location.href = 'overview.php';
                 </script>";
+                
                 $stmt->close();
                 $conn->close();
                 exit;
@@ -69,7 +82,7 @@ $conn->close();
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="Css/form_layout.css">
-    </head>
+</head>
 <body>
     
     <div class="background-blob blob-1"></div>
@@ -95,6 +108,7 @@ $conn->close();
                 <?= htmlspecialchars($login_message) ?>
             </div>
         <?php endif; ?>
+
         <div class="form-group">
             <label for="role" class="sr-only">Role</label>
             <select id="role" name="role" required>
@@ -103,13 +117,11 @@ $conn->close();
                 <option value="dosen" <?= $selectedRole === 'dosen' ? 'selected' : '' ?>>Dosen</option>
                 <option value="tamu" <?= $selectedRole === 'tamu' ? 'selected' : '' ?>>Tamu</option>
             </select>
-            <div class="error-message" id="role-error"></div>
         </div>
 
         <div class="form-group">
             <label for="user" class="sr-only">Email, NIM, atau NIDN</label>
             <input type="text" id="user" name="user" placeholder="Email, NIM, atau NIDN" required>
-            <div class="error-message" id="user-error"></div>
         </div>
 
         <div class="form-group">
@@ -118,14 +130,13 @@ $conn->close();
                 <input type="password" id="password" name="password" placeholder="Kata sandi" required>
                 <span class="toggle-password" data-target="password">🙈</span>
             </div>
-            <div class="error-message" id="password-error"></div>
         </div>
 
         <div style="display:flex; justify-content:flex-end; margin-bottom:1rem; margin-top: 0.5rem;">
             <a href="forgot_password.php" style="color:var(--text-putih); font-size:0.98em; text-decoration:none; font-weight:500;">
                 Lupa password?
             </a>
-            </div>
+        </div>
 
         <button type="submit" class="btn-daftar">Login</button>
 

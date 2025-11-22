@@ -65,29 +65,24 @@ document.addEventListener("DOMContentLoaded", () => {
 function initSidebar() {
     const sidebar = document.getElementById("sidebar");
     const sidebarToggleBtn = document.getElementById("sidebarToggleBtn");
-    const overlay = document.getElementById("sidebarOverlay");
+    
+    if (!sidebar || !sidebarToggleBtn) return;
 
-    if (!sidebar) return;
+    // 1. Fungsi Toggle
+    sidebarToggleBtn.addEventListener("click", () => {
+        sidebar.classList.toggle("collapsed");
+        
+        // Simpan status ke LocalStorage agar browser ingat
+        const isCollapsed = sidebar.classList.contains("collapsed");
+        localStorage.setItem("sidebarCollapsed", isCollapsed ? "true" : "false");
+    });
 
-    // Toggle desktop collapse
-    if (sidebarToggleBtn) {
-        sidebarToggleBtn.addEventListener("click", () => {
-            const collapsed = sidebar.classList.toggle("collapsed");
-            localStorage.setItem("sidebarCollapsed", collapsed ? "true" : "false");
-        });
-    }
-
-    // Load saved state
-    if (window.innerWidth > 768) {
-        const collapsedSaved = localStorage.getItem("sidebarCollapsed");
-        if (collapsedSaved === "true") {
-            sidebar.classList.add("collapsed");
-        }
-    }
-
-    // overlay saat ini tidak dipakai untuk mobile toggle, tapi tetap aman
-    if (overlay) {
-        overlay.classList.remove("active");
+    // 2. Load Status Tersimpan (Saat Refresh)
+    const savedState = localStorage.getItem("sidebarCollapsed");
+    
+    // Jika di desktop (> 768px) dan status tersimpan adalah 'true', otomatis tutup
+    if (window.innerWidth > 768 && savedState === "true") {
+        sidebar.classList.add("collapsed");
     }
 }
 
@@ -418,20 +413,60 @@ function initSmartSearch() {
         btnExport.addEventListener("click", () => {
             const data = DashboardState.search.lastResults || [];
             if (data.length === 0) {
-                alert("Belum ada data untuk diekspor.");
+                // Gunakan Toast jika ada, atau alert biasa
+                alert("Tidak ada data untuk diekspor saat ini.");
                 return;
             }
-            // Placeholder: format CSV di console
-            console.log("Ekspor pseudo-CSV:", data);
-            alert("Ekspor dummy: cek console browser untuk melihat data.");
+
+            // 1. Buat Header CSV
+            let csvContent = "data:text/csv;charset=utf-8,";
+            csvContent += "Plat Nomor,Pemilik,Jenis,Lokasi,Status,Waktu\n";
+
+            // 2. Loop Data & Susun Baris
+            data.forEach(row => {
+                // Bersihkan data dari koma agar tidak merusak format CSV
+                const plat    = (row.plat || "-").replace(/,/g, "");
+                const pemilik = (row.pemilik || "-").replace(/,/g, "");
+                const jenis   = (row.jenis || "-");
+                const slot    = (row.slot || "-");
+                const status  = (row.status || "-");
+                const waktu   = (row.waktu || "-");
+
+                csvContent += `${plat},${pemilik},${jenis},${slot},${status},${waktu}\n`;
+            });
+
+            // 3. Buat Link Download Otomatis
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            
+            // Nama file dengan timestamp
+            const dateStr = new Date().toISOString().slice(0,10);
+            link.setAttribute("download", `Laporan_Parkir_${dateStr}.csv`);
+            
+            document.body.appendChild(link); // Diperlukan untuk Firefox
+            link.click();
+            document.body.removeChild(link);
         });
     }
 
     // Refresh (dummy)
     if (btnRefresh) {
         btnRefresh.addEventListener("click", () => {
+            // Tambahkan efek visual loading pada tombol
+            const originalIcon = btnRefresh.innerHTML;
+            btnRefresh.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i>';
+            btnRefresh.disabled = true;
+
+            // Panggil fungsi pencarian ulang
             syncSearchStateFromUI();
             doSearch();
+
+            // Kembalikan tombol setelah jeda singkat (simulasi UX)
+            setTimeout(() => {
+                btnRefresh.innerHTML = originalIcon;
+                btnRefresh.disabled = false;
+            }, 800);
         });
     }
 

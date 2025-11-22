@@ -1,32 +1,39 @@
 <?php
-// FILE: Scan_qrcode.php (Menggunakan struktur yang Anda sukai, dengan eksternal JS)
+// FILE: petugas/scan_qrcode.php
 session_start();
 include '../config.php'; 
 
-// === 1. PROTEKSI SESI ===
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'petugas') {
-    session_destroy();
-    header('Location: login_petugas.php'); 
-    exit;
+// Proteksi Sesi
+if (!isset($_SESSION['user_id']) || ($_SESSION['role'] !== 'petugas' && $_SESSION['role'] !== 'admin')) {
+    header("Location: login_petugas.php");
+    exit();
 }
 
-// === 2. AMBIL DATA PETUGAS & KPI ===
-$nama_petugas = $_SESSION['nama'] ?? 'Petugas Parkir';
-$petugas_id = $_SESSION['user_id'];
-$total_on_site = 0; 
+$nama_petugas = $_SESSION['nama'] ?? 'Petugas';
+$role_label   = ucfirst($_SESSION['role']);
 
-// Ambil Status Kendaraan Saat Ini
-if (isset($conn) && !$conn->connect_error) {
-    $sql_on_site = "SELECT COUNT(id) AS total_on_site FROM log_parkir WHERE status = 'masuk'"; 
-    $result_on_site = $conn->query($sql_on_site);
-    if ($result_on_site) {
-        $data = $result_on_site->fetch_assoc();
-        $total_on_site = $data['total_on_site'] ?? 0;
+// --- LOGIKA DATA MAP UNTUK MODAL ---
+// 1. Ambil Area
+$areas = [];
+$sql_area = "SELECT * FROM area_parkir ORDER BY id ASC";
+$res_area = $conn->query($sql_area);
+if ($res_area) {
+    while($row = $res_area->fetch_assoc()) $areas[] = $row;
+}
+
+// 2. Ambil Semua Slot
+$sql_slots = "SELECT s.*, l.plat_nomor, k.jenis AS jenis_kendaraan
+              FROM slot_parkir s
+              LEFT JOIN log_parkir l ON s.id = l.slot_id AND l.status = 'masuk'
+              LEFT JOIN kendaraan k ON l.plat_nomor = k.plat_nomor
+              ORDER BY s.area_id ASC, s.grid_row ASC, s.grid_col ASC";
+$res_slots = $conn->query($sql_slots);
+
+$slots_by_area = [];
+if ($res_slots) {
+    while($row = $res_slots->fetch_assoc()) {
+        $slots_by_area[$row['area_id']][] = $row;
     }
-}
-// Tutup koneksi (Opsional, tapi Good Practice)
-if (isset($conn)) {
-    $conn->close();
 }
 ?>
 <!DOCTYPE html>
@@ -34,217 +41,308 @@ if (isset($conn)) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scanner Parkir - <?php echo htmlspecialchars($nama_petugas); ?></title> 
-    <link rel="stylesheet" href="dashboard_petugas.css"> 
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"> 
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    <title>Scanner - Parkir UMK</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="dashboard_petugas.css">
+    <link rel="stylesheet" href="visual_map.css">
+    <script src="zxing.min.js"></script> 
     
     <style>
-        :root { 
-            --primary-blue: #114A9B; 
-            --primary-yellow: #FBCE00; 
-            --border-color: #111827; 
-            --bg-content: #FFFFFF; 
-            --shadow-light: 0 4px 15px rgba(0, 0, 0, 0.1);
+        /* Style Khusus Bottom Sheet */
+        .bottom-sheet-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5); z-index: 999;
+            opacity: 0; visibility: hidden; transition: 0.3s;
+            backdrop-filter: blur(4px);
         }
-        body { background-color: #f4f6f9; font-family: 'Manrope', sans-serif; } 
+        .bottom-sheet-overlay.active { opacity: 1; visibility: visible; }
+
+        .bottom-sheet {
+            position: fixed; left: 0; right: 0; bottom: 0;
+            background: #fff;
+            border-radius: 24px 24px 0 0;
+            box-shadow: 0 -10px 40px rgba(0,0,0,0.2);
+            z-index: 1000;
+            transform: translateY(100%);
+            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            max-height: 85vh;
+            display: flex; flex-direction: column;
+        }
+        .bottom-sheet.active { transform: translateY(0); }
+
+        .sheet-header {
+            padding: 20px; border-bottom: 1px solid var(--gray-200);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .sheet-title { font-weight: 700; font-size: 1.1rem; color: var(--secondary); }
+        .sheet-close { background: none; border: none; font-size: 1.5rem; color: var(--gray-400); cursor: pointer; }
+
+        .sheet-content {
+            padding: 20px; overflow-y: auto; flex: 1;
+            background: var(--gray-50);
+        }
+
+        /* Override Visual Map Grid untuk Sheet agar muat */
+        .sheet-content .parking-grid {
+            transform: scale(0.9); transform-origin: top center; margin-top: 0;
+        }
         
-        /* === 1. TOMBOL KEMBALI (Lebih Rapi) === */
-        .back-link-container {
-            max-width: 500px; 
-            margin: 30px auto 15px; 
-            padding: 0 15px;
+        /* Input Trigger Button */
+        .input-trigger {
+            width: 100%; padding: 12px 16px; text-align: left;
+            background: var(--white); border: 2px solid var(--gray-200);
+            border-radius: var(--radius); color: var(--gray-500);
+            cursor: pointer; display: flex; justify-content: space-between; align-items: center;
+            transition: var(--transition);
         }
-        .btn-back-dashboard {
-            background: #6c757d; 
-            color: white;
-            padding: 10px 15px;
-            border-radius: 8px; /* Lebih membulat */
-            text-decoration: none;
-            font-weight: 600;
-            font-size: 0.95rem;
-            transition: all 0.2s;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15); /* Bayangan halus */
-        }
-        .btn-back-dashboard:hover {
-            background: #5a6268;
-            transform: translateY(-1px);
-        }
-        
-        .container { 
-            max-width: 500px; 
-            margin: 0 auto 50px; 
-            padding: 30px; 
-            background: var(--bg-content); 
-            border: none; /* Hilangkan border hitam */
-            border-radius: 12px; /* Lebih membulat */
-            box-shadow: var(--shadow-light); /* Gunakan bayangan halus */
-        }
-        h1 { 
-            color: var(--primary-blue); 
-            border-bottom: 2px solid #eee; 
-            padding-bottom: 15px; 
-            margin-top: 0; 
-            font-size: 1.8rem; 
-            text-align: center; 
-            font-weight: 700;
-        }
-        p { text-align: center; font-weight: 500; font-size: 1.1rem; margin-bottom: 25px;}
-        
-        .form-group { margin-bottom: 20px; }
-        .form-group label { display: block; font-weight: 600; margin-bottom: 8px; font-size: 0.95rem; color: #444; }
-        
-        /* Input & Select Styles (Lebih Rapi) */
-        .form-group input[readonly], 
-        .form-group select,
-        .scan-input-group input[type="text"] { 
-            width: 100%; 
-            padding: 12px; 
-            border: 1px solid #ddd; 
-            border-radius: 8px; /* Lebih membulat */
-            box-sizing: border-box; 
-            font-size: 1rem; 
-            background-color: white; /* Input field background putih */
-            color: #333;
-            transition: border-color 0.2s;
-        }
-        .form-group input[readonly], .form-group select {
-            background-color: #f7f7f7;
-        }
-        .scan-input-group { display: flex; gap: 10px; }
+        .input-trigger.filled { border-color: var(--primary); color: var(--secondary); font-weight: 600; background: var(--primary-light); }
+        .input-trigger:hover { border-color: var(--primary); }
 
-        /* === 2. TOMBOL SCAN KAMERA (Lebih Rapi) === */
-        .btn-camera { 
-            background: var(--primary-yellow); 
-            color: var(--primary-blue); 
-            font-size: 1rem; 
-            width: 150px; 
-            border: none;
-            border-radius: 8px; /* Lebih membulat */
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.2s;
-            padding: 12px 10px;
-            box-shadow: 0 2px 5px rgba(251, 206, 0, 0.4); /* Bayangan Kuning */
-        }
-        .btn-camera:hover {
-            background: #FFD740;
-            transform: translateY(-1px);
-        }
-
-        /* === 3. TOMBOL CATAT MASUK/KELUAR (Sangat Rapi & Menarik) === */
-        .btn-scan-action { display: flex; justify-content: space-between; gap: 15px; margin-top: 25px; }
-        
-        .btn-scan { 
-            padding: 15px 20px; /* Padding lebih besar */
-            border: none; 
-            border-radius: 10px; /* Lebih membulat */
-            font-weight: 700; 
-            cursor: pointer; 
-            width: 50%; 
-            font-size: 1.1rem; 
-            transition: all 0.3s ease; 
-        }
-
-        .btn-masuk { 
-            background: #2ECC71; /* Hijau */
-            color: white; 
-            box-shadow: 0 4px 10px rgba(46, 204, 113, 0.4); 
-        }
-        .btn-masuk:hover { 
-            background: #27ae60; 
-            transform: translateY(-2px); 
-            box-shadow: 0 6px 15px rgba(46, 204, 113, 0.6); 
-        }
-
-        .btn-keluar { 
-            background: #E74C3C; /* Merah */
-            color: white; 
-            box-shadow: 0 4px 10px rgba(231, 76, 60, 0.4); 
-        }
-        .btn-keluar:hover { 
-            background: #c0392b; 
-            transform: translateY(-2px); 
-            box-shadow: 0 6px 15px rgba(231, 76, 60, 0.6); 
-        }
-
-        #scanner-container { width: 100%; height: 250px; background: #333; border-radius: 10px; margin-bottom: 20px; overflow: hidden; position: relative; z-index: 5; }
-        #scanner-video { width: 100%; height: 100%; object-fit: cover; z-index: 10; position: relative; }
-
-        /* Mobile Adjustments */
-        @media (max-width: 600px) {
-            .container { padding: 20px 15px; margin: 0 auto 30px; border-radius: 0; }
-            .scan-input-group { flex-direction: column; gap: 8px; }
-            .btn-camera { width: 100%; font-size: 1.1rem; padding: 15px; }
-            .btn-scan-action { flex-direction: column; gap: 10px; }
-            .btn-scan { width: 100%; padding: 18px; font-size: 1.2rem; }
-            .back-link-container { margin: 20px auto 10px; padding: 0 15px; }
-        }
+        /* Hide Area Grids by Default */
+        .area-grid-container { display: none; }
+        .area-grid-container.active { display: block; animation: fadeIn 0.3s; }
+        @keyframes fadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
     </style>
-    <script src="Js/zxing.min.js"></script> 
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script> 
 </head>
 <body>
-    
-    <div class="back-link-container">
-        <a href="dashboard_petugas.php" class="btn-back-dashboard">
-            <i class="fa-solid fa-arrow-left"></i> Kembali ke Dashboard
-        </a>
-    </div>
-    
-    <div class="container">
-        <h1>Pencatatan Parkir UMK</h1>
-        
-        <div id="scanner-container" style="display: none;">
-            <video id="scanner-video" autoplay="true" muted="true" playsinline></video>
+
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-logo-group">
+                <img src="../Lambang UMK.png" alt="Logo UMK" class="sidebar-logo">
+            </div>
+            <button class="sidebar-toggle-desktop" id="sidebarToggleBtn"><i class="fa-solid fa-angles-left"></i></button>
         </div>
-        <form id="scanForm">
-            <div class="form-group">
-                <label for="user_code">Kode Pengguna (QR/Barcode)</label>
-                <div class="scan-input-group">
-                    <input type="text" id="user_code" name="user_code" placeholder="Scan atau Input Kode Pengguna" autofocus required>
-                    <button type="button" class="btn-camera" id="toggleScannerBtn">
-                        <i class="fa-solid fa-camera"></i> Scan Kamera
-                    </button>
+        <nav class="sidebar-nav">
+            <a href="dashboard_petugas.php" class="nav-item"><i class="fa-solid fa-table-columns"></i><span>Dashboard</span></a>
+            <a href="scan_qrcode.php" class="nav-item active"><i class="fa-solid fa-qrcode"></i><span>Scan Masuk/Keluar</span></a>
+            <a href="visual_map.php" class="nav-item"><i class="fa-solid fa-map-location-dot"></i><span>Visual Map & Slot</span></a>
+            <a href="data_parkir.php" class="nav-item"><i class="fa-solid fa-car-side"></i><span>Data Parkir Aktif</span></a>
+            <a href="laporan.php" class="nav-item"><i class="fa-solid fa-chart-bar"></i><span>Laporan Harian</span></a>
+        </nav>
+    </aside>
+
+    <main class="main-content">
+        <header class="top-header">
+            <div class="header-left">
+                <div class="page-info">
+                    <h1 class="page-title">Scan QR Code</h1>
+                    <p class="page-subtitle">Pindai kode pengguna untuk mencatat akses</p>
                 </div>
             </div>
+            <div class="header-right">
+                <a href="logout_petugas.php" class="mobile-logout-btn" onclick="return confirm('Yakin ingin keluar?');">
+                    <i class="fa-solid fa-power-off"></i>
+                </a>
 
-            <div class="form-group">
-                <label for="plat_nomor">Plat Nomor Kendaraan</label>
-                <select id="plat_nomor" name="plat_nomor" required disabled> 
-                    <option value="">-- Scan/Input Kode Pengguna Dahulu --</option>
-                </select>
+                <div class="user-profile">
+                    <div class="user-avatar"><?= strtoupper(substr($nama_petugas, 0, 1)) ?></div>
+                    <div class="user-info">
+                        <span class="user-name"><?= htmlspecialchars($nama_petugas) ?></span>
+                        <span class="user-role"><?= htmlspecialchars($role_label) ?></span>
+                    </div>
+                </div>
             </div>
-            
-            <div class="form-group">
-                <label for="jenis_kendaraan">Jenis Kendaraan</label>
-                <input 
-                    type="text" 
-                    id="jenis_kendaraan" 
-                    name="jenis_kendaraan" 
-                    placeholder="Jenis Kendaraan" 
-                    readonly 
-                    required
-                >
-            </div>
-            
-            <input type="hidden" name="petugas_id" value="<?php echo htmlspecialchars($petugas_id); ?>">
-            <input type="hidden" name="action" id="action_type">
+        </header>
 
-            <div class="btn-scan-action">
-                <button type="button" class="btn-scan btn-masuk" id="btnMasuk">
-                    <i class="fa-solid fa-arrow-right-to-bracket"></i> CATAT MASUK
-                </button>
-                <button type="button" class="btn-scan btn-keluar" id="btnKeluar">
-                    <i class="fa-solid fa-arrow-right-from-bracket"></i> CATAT KELUAR
-                </button>
+        <div class="dashboard-content">
+            <div class="scanner-layout">
+                
+                <div class="scanner-card">
+                    <div id="scanner-container" style="display:none;">
+                        <video id="scanner-video" autoplay muted playsinline></video>
+                        <div class="scanner-overlay"></div>
+                    </div>
+                    <div id="cameraPlaceholder" style="height: 350px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #94A3B8; width: 100%; margin-bottom: 16px;">
+                        <i class="fa-solid fa-camera" style="font-size: 3rem; margin-bottom: 10px;"></i>
+                        <span>Kamera Nonaktif</span>
+                    </div>
+                    <button type="button" class="btn-camera" id="toggleScannerBtn">
+                        <i class="fa-solid fa-camera"></i> Aktifkan Kamera
+                    </button>
+                </div>
+
+                <div class="control-card">
+                    <form id="scanForm">
+                        <div class="form-group">
+                            <label class="form-label">Kode Pengguna / ID</label>
+                            <input type="text" id="user_code" name="user_code" class="form-input" placeholder="Scan QR atau Ketik ID..." autocomplete="off" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Kendaraan Terdaftar</label>
+                            <select id="plat_nomor" name="plat_nomor" class="form-select" disabled>
+                                <option value="">-- Menunggu ID --</option>
+                            </select>
+                        </div>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                            <div class="form-group">
+                                <label class="form-label">Jenis</label>
+                                <input type="text" id="jenis_kendaraan" class="form-input" readonly placeholder="-">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Warna</label>
+                                <input type="text" id="warna_kendaraan" class="form-input" readonly placeholder="-">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Lokasi Parkir (Khusus Masuk)</label>
+                            
+                            <input type="hidden" name="kode_area" id="kode_area_input">
+                            
+                            <button type="button" class="input-trigger" id="btnTriggerSlot" onclick="openSlotSheet()">
+                                <span id="slotLabelText">-- Pilih Lewat Peta --</span>
+                                <i class="fa-solid fa-map-location-dot"></i>
+                            </button>
+                        </div>
+
+                        <div class="btn-scan-action">
+                            <button type="button" class="btn-scan btn-masuk" id="btnMasuk">
+                                <i class="fa-solid fa-right-to-bracket"></i> Catat Masuk
+                            </button>
+                            <button type="button" class="btn-scan btn-keluar" id="btnKeluar">
+                                <i class="fa-solid fa-right-from-bracket"></i> Catat Keluar
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
             </div>
-        </form>
+        </div>
+    </main>
+
+    <div class="bottom-sheet-overlay" id="sheetOverlay" onclick="closeSlotSheet()"></div>
+    <div class="bottom-sheet" id="slotBottomSheet">
+        <div class="sheet-header">
+            <h3 class="sheet-title">Pilih Slot Parkir</h3>
+            <button class="sheet-close" onclick="closeSlotSheet()"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        
+        <div style="padding: 10px 20px 0;">
+            <div class="area-tabs">
+                <?php foreach($areas as $index => $area): ?>
+                <button type="button" class="area-tab <?= $index === 0 ? 'active' : '' ?>" 
+                        onclick="switchSheetTab('<?= $area['id'] ?>', this)">
+                    <?= htmlspecialchars($area['nama_area']) ?>
+                </button>
+                <?php endforeach; ?>
+            </div>
+        </div>
+
+        <div class="sheet-content">
+            <?php foreach($areas as $index => $area): 
+                $current_slots = $slots_by_area[$area['id']] ?? [];
+            ?>
+            <div class="area-grid-container <?= $index === 0 ? 'active' : '' ?>" id="grid-area-<?= $area['id'] ?>">
+                <div class="parking-grid" style="--rows: 6; --cols: 5;">
+                    <?php foreach($current_slots as $slot): 
+                        $status = ($slot['status'] === 'terisi') ? 'occupied' : (($slot['status'] === 'rusak') ? 'maintenance' : 'available');
+                        
+                        // [UPDATE] Logika Ikon Kendaraan
+                        $icon = 'fa-check';
+                        if ($status == 'occupied') {
+                            // Cek apakah motor atau mobil
+                            $jenis = strtolower($slot['jenis_kendaraan'] ?? '');
+                            $icon = ($jenis == 'motor') ? 'fa-motorcycle' : 'fa-car';
+                        } elseif ($status == 'maintenance') {
+                            $icon = 'fa-triangle-exclamation';
+                        }
+                        
+                        // Hanya slot available yang bisa diklik untuk dipilih
+                        $onClick = ($status === 'available') ? "selectSlot('{$slot['kode_slot']}')" : "";
+                        $cursor = ($status === 'available') ? "cursor: pointer;" : "cursor: not-allowed; opacity: 0.6;";
+                    ?>
+                    <div class="parking-slot <?= $status ?>" 
+                         style="grid-row: <?= $slot['grid_row'] ?>; grid-column: <?= $slot['grid_col'] ?>; <?= $cursor ?>"
+                         onclick="<?= $onClick ?>">
+                        <div class="slot-header">
+                            <span class="slot-code"><?= $slot['kode_slot'] ?></span>
+                        </div>
+                        <div class="slot-body">
+                            <i class="fa-solid <?= $icon ?>"></i>
+                            <?php if($status === 'occupied'): ?>
+                                <span class="visible-plat" style="font-size:0.7rem;"><?= $slot['plat_nomor'] ?></span>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                    <?php endforeach; ?>
+                    <div class="road-marking" style="grid-row: 2; grid-column: 1 / -1;"></div>
+                </div>
+            </div>
+            <?php endforeach; ?>
+        </div>
     </div>
+
+    <nav class="mobile-nav">
+        <a href="dashboard_petugas.php" class="mobile-nav-item">
+            <i class="fa-solid fa-table-columns"></i>
+            <span>Dash</span>
+        </a>
+        <a href="scan_qrcode.php" class="mobile-nav-item active">
+            <i class="fa-solid fa-qrcode"></i>
+            <span>Scan</span>
+        </a>
+        <a href="visual_map.php" class="mobile-nav-item">
+            <i class="fa-solid fa-map-location-dot"></i>
+            <span>Map</span>
+        </a>
+        <a href="data_parkir.php" class="mobile-nav-item">
+                <i class="fa-solid fa-car-side"></i><span>Data</span>
+        </a>
+        <a href="laporan.php" class="mobile-nav-item">
+            <i class="fa-solid fa-chart-simple"></i>
+            <span>Laporan</span>
+        </a>
+    </nav>
+
+    <script src="dashboard_petugas.js"></script>
+    <script src="scanner_logic.js"></script>
     
-    <script src="scanner_logic.js"></script> 
+    <script>
+        // === LOGIKA BOTTOM SHEET MAP ===
+        function openSlotSheet() {
+            document.getElementById('sheetOverlay').classList.add('active');
+            document.getElementById('slotBottomSheet').classList.add('active');
+        }
+
+        function closeSlotSheet() {
+            document.getElementById('sheetOverlay').classList.remove('active');
+            document.getElementById('slotBottomSheet').classList.remove('active');
+        }
+
+        function switchSheetTab(areaId, btnElement) {
+            // 1. Hide semua grid
+            document.querySelectorAll('.area-grid-container').forEach(el => el.classList.remove('active'));
+            // 2. Show grid terpilih
+            document.getElementById('grid-area-' + areaId).classList.add('active');
+            
+            // 3. Update Tab Style
+            document.querySelectorAll('.sheet-header .area-tab, .bottom-sheet .area-tab').forEach(el => el.classList.remove('active'));
+            btnElement.classList.add('active');
+        }
+
+        function selectSlot(kodeSlot) {
+            // 1. Isi ke Hidden Input
+            document.getElementById('kode_area_input').value = kodeSlot;
+            
+            // 2. Update Label Tombol (Feedback Visual)
+            const btn = document.getElementById('btnTriggerSlot');
+            document.getElementById('slotLabelText').innerText = "Terpilih: " + kodeSlot;
+            btn.classList.add('filled');
+            
+            // 3. Tutup Sheet
+            closeSlotSheet();
+            
+            // 4. (Opsional) SweetAlert kecil
+            const Toast = Swal.mixin({
+                toast: true, position: 'top-end', showConfirmButton: false, timer: 1500
+            });
+            Toast.fire({ icon: 'success', title: 'Slot ' + kodeSlot + ' dipilih' });
+        }
+    </script>
 </body>
 </html>

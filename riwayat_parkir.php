@@ -70,11 +70,11 @@ if (file_exists(__DIR__ . '/config.php')) {
     include_once __DIR__ . '/config.php';
     
     // Query riwayat parkir (50 data terakhir)
-    $sql = "SELECT l.*, a.kode_area, a.nama_area 
+    $sql = "SELECT l.*, l.kode_area AS slot_lokasi, a.nama_area 
             FROM log_parkir l 
             LEFT JOIN area_parkir a ON l.area_id = a.id 
             WHERE l.user_id = ? 
-            ORDER BY l.id DESC LIMIT 50"; 
+            ORDER BY l.id DESC LIMIT 50";
             
     $stmt = $conn->prepare($sql);
     if ($stmt) {
@@ -89,7 +89,7 @@ if (file_exists(__DIR__ . '/config.php')) {
             // Cek status terkini dari data paling baru
             if ($firstRow) {
                 if (strtolower($row['status'] ?? 'keluar') === 'masuk') {
-                    $currentLocation = $row['kode_area'] ?? 'AREA';
+                    $currentLocation = $row['slot_lokasi'] ?? 'AREA'; 
                     $currentAreaName = $row['nama_area'] ?? 'Area Parkir';
                     $currentStatus = 'masuk';
                 }
@@ -586,7 +586,7 @@ if ($currentStatus === 'masuk') {
                     ?>
                     <tr style="border-bottom: 1px solid #f8fafc;">
                         <td><span style="font-family: 'Geist Mono', monospace; font-weight: 600; color:#0f172a;"><?php echo htmlspecialchars($row['plat_nomor']); ?></span></td>
-                        <td><span style="font-family: 'Geist Mono', monospace; font-weight: 600; color:#334155;"><?php echo htmlspecialchars($row['kode_area'] ?? '-'); ?></span></td>
+                        <td><span style="font-family: 'Geist Mono', monospace; font-weight: 600; color:#334155;"><?php echo htmlspecialchars($row['slot_lokasi'] ?? '-'); ?></span></td>
                         <td><span style="font-family: 'Geist Mono', monospace; font-size:0.85rem; color:#64748b;"><?php echo $dateIn; ?></span></td>
                         <td><span style="font-family: 'Geist Mono', monospace; font-size:0.85rem; color:#64748b;"><?php echo $dateOut; ?></span></td>
                         

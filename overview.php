@@ -1,6 +1,33 @@
 <?php
 // Pastikan session dimulai sebelum output HTML
-if (session_status() !== PHP_SESSION_ACTIVE) session_start();
+if (session_status() !== PHP_SESSION_ACTIVE) {
+    session_start();
+}
+
+// 2. Cek Apakah User Sudah Login?
+if (!isset($_SESSION['user_id'])) {
+    // Jika belum login, redirect ke halaman login
+    header("Location: login.php");
+    exit();
+}
+
+// 3. Cek Apakah Role Sesuai? (Mencegah Petugas Masuk ke Halaman User)
+// List role yang diizinkan masuk ke Overview
+$allowed_roles = ['mahasiswa', 'dosen', 'tamu'];
+
+// Ambil role dari session (pastikan lowercase untuk pencocokan)
+$user_role = strtolower($_SESSION['role'] ?? '');
+
+if (!in_array($user_role, $allowed_roles)) {
+    // Jika role adalah 'petugas' atau 'admin', redirect ke dashboard mereka
+    if ($user_role === 'petugas' || $user_role === 'admin') {
+        header("Location: petugas/dashboard_petugas.php");
+    } else {
+        // Jika role tidak dikenal, kembalikan ke login
+        header("Location: login.php");
+    }
+    exit();
+}
 
 // Default placeholder
 $placeholder = 'assets/img/avatar-placeholder.png';
@@ -60,7 +87,7 @@ if ($uid) {
         include_once __DIR__ . '/config.php';
         
         // 1. Cek Log Parkir (Apakah User Sedang Parkir?)
-        $query_log = "SELECT l.status, l.plat_nomor, a.kode_area, a.nama_area 
+        $query_log = "SELECT l.status, l.plat_nomor, l.kode_area AS slot_lokasi, a.nama_area 
               FROM log_parkir l 
               LEFT JOIN area_parkir a ON l.area_id = a.id 
               WHERE l.user_id = ? 
@@ -83,8 +110,8 @@ if ($uid) {
             // PRIORITAS 1: Sedang parkir
             $target_plat = $log['plat_nomor'];
             
-            // [UPDATE] Set variabel tampilan lokasi
-            $displayLocCode = $log['kode_area'] ?? 'AREA';
+            // Gunakan 'slot_lokasi' (ambil dari tabel log) agar tampil spesifik (misal: A1-05)
+            $displayLocCode = $log['slot_lokasi'] ?? 'AREA'; 
             $displayLocName = $log['nama_area'] ?? '';
             $isParked = true;
         } else {

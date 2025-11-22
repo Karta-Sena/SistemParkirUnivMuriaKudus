@@ -97,10 +97,6 @@ if (isset($conn) && !$conn->connect_error) {
         <div class="sidebar-header">
             <div class="sidebar-logo-group">
                 <img src="../Lambang UMK.png" alt="Logo UMK" class="sidebar-logo">
-                <div class="sidebar-brand">
-                    <span class="brand-name">Parkir UMK</span>
-                    <span class="brand-sub">Petugas Console</span>
-                </div>
             </div>
             <button class="sidebar-toggle-desktop" id="sidebarToggleBtn" title="Perkecil sidebar">
                 <i class="fa-solid fa-angles-left"></i>
@@ -112,7 +108,7 @@ if (isset($conn) && !$conn->connect_error) {
                 <i class="fa-solid fa-table-columns"></i>
                 <span>Dashboard</span>
             </a>
-            <a href="Scan_qrcode.php" class="nav-item">
+            <a href="scan_qrcode.php" class="nav-item">
                 <i class="fa-solid fa-qrcode"></i>
                 <span>Scan Masuk/Keluar</span>
             </a>
@@ -124,22 +120,11 @@ if (isset($conn) && !$conn->connect_error) {
                 <i class="fa-solid fa-car-side"></i>
                 <span>Data Parkir Aktif</span>
             </a>
-            <a href="riwayat.php" class="nav-item">
-                <i class="fa-solid fa-magnifying-glass"></i>
-                <span>Riwayat & Search</span>
-            </a>
             <a href="laporan.php" class="nav-item">
                 <i class="fa-solid fa-chart-bar"></i>
                 <span>Laporan Harian</span>
             </a>
         </nav>
-
-        <div class="sidebar-footer">
-            <a href="../logout.php" class="nav-item logout">
-                <i class="fa-solid fa-right-from-bracket"></i>
-                <span>Keluar</span>
-            </a>
-        </div>
     </aside>
 
     <!-- MAIN CONTENT -->
@@ -154,17 +139,12 @@ if (isset($conn) && !$conn->connect_error) {
                 </div>
             </div>
             <div class="header-right">
-                <div class="header-date">
-                    <i class="fa-regular fa-calendar"></i>
-                    <span><?= date('d M Y') ?></span>
-                </div>
-                <!-- notification-btn DIHAPUS sesuai permintaan -->
+                <a href="logout_petugas.php" class="mobile-logout-btn" onclick="return confirm('Yakin ingin keluar?');">
+                    <i class="fa-solid fa-power-off"></i>
+                </a>
 
-                <!-- Profil hanya tampilan, tidak clickable -->
                 <div class="user-profile">
-                    <div class="user-avatar">
-                        <?= strtoupper(substr($nama_petugas, 0, 1)) ?>
-                    </div>
+                    <div class="user-avatar"><?= strtoupper(substr($nama_petugas, 0, 1)) ?></div>
                     <div class="user-info">
                         <span class="user-name"><?= htmlspecialchars($nama_petugas) ?></span>
                         <span class="user-role"><?= htmlspecialchars($role_label) ?></span>
@@ -449,9 +429,9 @@ if (isset($conn) && !$conn->connect_error) {
     <nav class="mobile-nav">
         <a href="dashboard_petugas.php" class="mobile-nav-item active">
             <i class="fa-solid fa-table-columns"></i>
-            <span>Dashboard</span>
+            <span>Dash</span>
         </a>
-        <a href="Scan_qrcode.php" class="mobile-nav-item">
+        <a href="scan_qrcode.php" class="mobile-nav-item">
             <i class="fa-solid fa-qrcode"></i>
             <span>Scan</span>
         </a>
@@ -459,9 +439,8 @@ if (isset($conn) && !$conn->connect_error) {
             <i class="fa-solid fa-map-location-dot"></i>
             <span>Map</span>
         </a>
-        <a href="riwayat.php" class="mobile-nav-item">
-            <i class="fa-solid fa-magnifying-glass"></i>
-            <span>Search</span>
+        <a href="data_parkir.php" class="mobile-nav-item">
+                <i class="fa-solid fa-car-side"></i><span>Data</span>
         </a>
         <a href="laporan.php" class="mobile-nav-item">
             <i class="fa-solid fa-chart-simple"></i>

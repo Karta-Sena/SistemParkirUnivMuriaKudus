@@ -1,0 +1,443 @@
+/* FILE: visual_map.css - Final Clean Version */
+
+/* === MAP CONTROLS (Header) === */
+.map-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 32px; /* Jarak ke map lebih lega */
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.area-tabs {
+    display: flex;
+    gap: 12px;
+    background: var(--white);
+    padding: 8px;
+    border-radius: 50px; /* Pill shape */
+    border: 1px solid var(--gray-200);
+    box-shadow: var(--shadow-sm);
+}
+
+.area-tab {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 28px;
+    border-radius: 50px;
+    text-decoration: none;
+    color: var(--gray-500);
+    font-weight: 700;
+    font-size: 0.95rem;
+    transition: all 0.2s ease;
+}
+
+.area-tab:hover {
+    background: var(--gray-50);
+    color: var(--gray-800);
+}
+
+.area-tab.active {
+    background: var(--primary);
+    color: var(--white);
+    box-shadow: 0 4px 15px rgba(232, 93, 59, 0.3);
+}
+
+/* Legend */
+.map-legend {
+    display: flex;
+    gap: 24px;
+    background: var(--white);
+    padding: 12px 24px;
+    border-radius: 16px;
+    border: 1px solid var(--gray-200);
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--gray-600);
+}
+
+.dot {
+    width: 12px; height: 12px; border-radius: 4px;
+}
+.dot.available { background: #10B981; }
+.dot.occupied { background: #EF4444; }
+.dot.maintenance { background: #94A3B8; }
+
+
+/* === MAP WRAPPER (Kanvas) === */
+.map-wrapper {
+    background: #ffffff;
+    border-radius: 32px;
+    padding: 60px 40px; /* Padding besar agar lega */
+    border: 1px solid var(--gray-200);
+    box-shadow: var(--shadow-sm);
+    overflow: auto;
+    min-height: 600px;
+    position: relative;
+    
+    /* Pattern Dot Background (Sangat Halus) */
+    background-image: radial-gradient(#e5e7eb 1.5px, transparent 1.5px);
+    background-size: 30px 30px;
+}
+
+/* === PARKING GRID (LAYOUT) === */
+.parking-grid {
+    display: grid;
+    /* LAYOUT 5 KOLOM:
+       [Slot] [Slot] [JALAN/GAP] [Slot] [Slot]
+       Ukurannya kita buat responsif (1fr) agar memenuhi layar
+       Kolom tengah (80px) adalah pemisah jalan
+    */
+    grid-template-columns: 1fr 1fr 80px 1fr 1fr; 
+    
+    /* Tinggi Baris */
+    grid-template-rows: repeat(var(--rows), 180px); 
+    
+    /* Jarak Antar Item */
+    column-gap: 20px; 
+    row-gap: 30px; /* Jarak atas-bawah renggang */
+    
+    max-width: 1000px; /* Batasi lebar maksimal agar tidak terlalu melar */
+    margin: 0 auto; /* Tengah */
+    position: relative;
+}
+
+
+/* === PARKING SLOT CARD (Desain Diperbaiki) === */
+.parking-slot {
+    /* Ukuran & Bentuk */
+    min-height: 160px; /* Tinggi fix agar seragam */
+    border-radius: 24px; /* Sudut sangat bulat */
+    padding: 20px;
+    
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); /* Efek membal */
+    position: relative;
+    background: white;
+}
+
+/* Efek Hover: Zoom in sedikit */
+.parking-slot:hover {
+    transform: scale(1.05);
+    z-index: 5;
+}
+
+
+/* --- STYLE 1: TERSEDIA (Hijau Putus-Putus) --- */
+.parking-slot.available {
+    border: 2px dashed #10B981; /* Border putus-putus tebal */
+    background: rgba(16, 185, 129, 0.03); /* Background hijau sangat muda */
+}
+.parking-slot.available:hover {
+    background: rgba(16, 185, 129, 0.08);
+    box-shadow: 0 10px 25px rgba(16, 185, 129, 0.15);
+}
+.parking-slot.available .slot-body i {
+    color: #10B981;
+    font-size: 3rem;
+    opacity: 0.4; /* Icon checklist transparan */
+}
+
+
+/* --- STYLE 2: TERISI (Merah/Oranye Solid) --- */
+.parking-slot.occupied {
+    border: 2px solid #EF4444; /* Border solid merah */
+    background: #FEF2F2; /* Background merah muda */
+    box-shadow: 0 8px 20px rgba(239, 68, 68, 0.1);
+}
+.parking-slot.occupied:hover {
+    box-shadow: 0 12px 30px rgba(239, 68, 68, 0.2);
+    transform: translateY(-5px);
+}
+/* Icon Mobil/Motor */
+.parking-slot.occupied .slot-body i {
+    color: #EF4444;
+    font-size: 3.5rem;
+    filter: drop-shadow(0 4px 4px rgba(239, 68, 68, 0.2));
+}
+
+
+/* --- STYLE 3: RUSAK (Abu-abu) --- */
+.parking-slot.maintenance {
+    border: 2px dashed #94A3B8;
+    background: #F1F5F9;
+    opacity: 0.7;
+}
+
+
+/* === CONTENT DALAM CARD === */
+
+/* Kode Slot (A1-01) */
+.slot-header {
+    width: 100%;
+    text-align: center;
+}
+.slot-code {
+    font-family: 'Inter', sans-serif;
+    font-weight: 800;
+    font-size: 1.1rem; /* Font besar */
+    color: var(--gray-700);
+}
+.parking-slot.available .slot-code { color: #10B981; }
+.parking-slot.occupied .slot-code { color: #EF4444; }
+
+
+/* Tengah Card (Icon & Plat) */
+.slot-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    gap: 8px;
+}
+
+/* Plat Nomor (Hanya muncul jika terisi) */
+.visible-plat {
+    font-family: 'Geist Mono', monospace;
+    background: #1e293b;
+    color: #fff;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+}
+
+
+/* === JALAN (ROAD MARKING) - Diperbaiki === */
+/* Ini yang kemarin jadi kotak abu-abu aneh. Kita ubah jadi garis simple */
+.road-marking {
+    grid-column: 3; /* Posisi di tengah */
+    grid-row: 1 / -1; /* Dari atas sampai bawah */
+    
+    display: flex;
+    justify-content: center;
+    height: 100%;
+    width: 100%;
+    pointer-events: none; /* Agar tidak menghalangi klik */
+}
+
+/* Garis putus-putus vertikal di tengah */
+.road-marking::before {
+    content: '';
+    width: 0;
+    height: 100%;
+    border-left: 2px dashed #cbd5e1; /* Garis putus-putus abu halus */
+}
+
+.modal-overlay {
+    display: none; /* Default tersembunyi */
+    position: fixed; /* WAJIB: Agar mengambang di atas layar */
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6); /* Latar belakang gelap transparan */
+    z-index: 9999; /* Angka tinggi agar menutupi navbar bawah */
+    
+    /* Posisi Tengah */
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px); /* Efek blur estetik */
+}
+
+.detail-card {
+    background: white;
+    width: 90%; /* Lebar di HP */
+    max-width: 400px; /* Maksimal lebar di Desktop */
+    padding: 24px;
+    border-radius: 24px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    position: relative;
+    animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Header Modal */
+.detail-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.detail-icon-circle {
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    background: var(--gray-100);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.5rem;
+    color: var(--gray-500);
+}
+.detail-icon-circle.occupied { background: #fee2e2; color: #ef4444; }
+.detail-icon-circle.available { background: #d1fae5; color: #10b981; }
+
+/* Body Modal (Baris Data) */
+.info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--gray-100);
+}
+.info-row:last-child { border-bottom: none; }
+
+.info-row label {
+    color: var(--gray-500);
+    font-size: 0.9rem;
+}
+
+.info-row span {
+    color: var(--gray-800);
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+/* Badge Khusus di dalam Modal */
+.status-badge {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 700;
+}
+
+.close-modal {
+    position: absolute;
+    top: 20px; right: 20px;
+    background: none; border: none;
+    color: var(--gray-400);
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 8px; 
+    font-size: 1.5rem; 
+    top: 15px; 
+    right: 15px;
+}
+
+@keyframes slideUp {
+    from { transform: translateY(50px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+/* === RESPONSIVE (HP) === */
+@media (max-width: 768px) {
+    .map-wrapper {
+        height: auto;
+        overflow: visible;
+        border-radius: 16px;
+    }
+    
+    /* HEADER: Tabs di Atas, Legend di Bawah */
+    .map-controls {
+        flex-direction: column;
+        gap: 16px;
+        padding: 16px;
+        position: relative;
+        align-items: stretch; /* Lebar penuh */
+    }
+    
+    /* --- FIX 1: TABS CONTROLLER (Scroll Samping) --- */
+    .area-tabs { 
+        width: 100%; 
+        justify-content: flex-start; /* Mulai dari kiri */
+        padding: 4px;
+        
+        /* Aktifkan Scroll Horizontal */
+        overflow-x: auto;
+        white-space: nowrap;
+        
+        /* Hilangkan Scrollbar agar rapi */
+        -ms-overflow-style: none; 
+        scrollbar-width: none; 
+    }
+    .area-tabs::-webkit-scrollbar { display: none; }
+    
+    .area-tab { 
+        flex: 0 0 auto; /* Jangan menyusut */
+        font-size: 0.85rem; 
+    }
+    
+    /* --- FIX 2: LEGEND (Segaris & Scroll) --- */
+    .map-legend {
+        width: 100%;
+        justify-content: flex-start; /* Rata kiri biar bisa discroll */
+        align-items: center;
+        gap: 16px;
+        
+        border-left: none;
+        padding-left: 0;
+        border-top: 1px dashed #e5e7eb;
+        padding-top: 16px;
+        
+        /* Paksa Segaris */
+        flex-wrap: nowrap !important; 
+        overflow-x: auto;
+        white-space: nowrap;
+        
+        /* Hilangkan Scrollbar */
+        -ms-overflow-style: none; 
+        scrollbar-width: none;
+    }
+    .map-legend::-webkit-scrollbar { display: none; }
+
+    .legend-item {
+        flex-shrink: 0; /* Item jangan mengecil */
+    }
+    
+    /* GRID SLOT (2 Kolom) */
+    .parking-grid {
+        grid-template-columns: 1fr 1fr; 
+        padding: 16px;
+        gap: 12px;
+        row-gap: 16px;
+    }
+    
+    .road-marking { display: none; }
+    
+    .parking-slot {
+        grid-column: auto !important;
+        grid-row: auto !important;
+        min-height: 140px;
+    }
+    
+    .slot-body i { font-size: 2.5rem; }
+
+    /* --- FIX 3: MODAL DI TENGAH --- */
+    .modal-overlay {
+        /* JANGAN GUNAKAN display: flex !important di sini! */
+        /* Biarkan JS yang mengatur display (none/flex) */
+        
+        align-items: flex-end; /* Opsi: flex-end agar mirip bottom sheet, atau center */
+        padding: 0; /* Reset padding agar nempel */
+    }
+
+    .detail-card {
+        width: 100%;
+        max-width: 100%; /* Full width di HP */
+        border-radius: 24px 24px 0 0; /* Lengkung atas saja */
+        padding: 24px;
+        margin: 0;
+        
+        /* Animasi Slide dari bawah */
+        animation: slideUpMobile 0.3s ease-out;
+    }
+    
+    @keyframes slideUpMobile {
+        from { transform: translateY(100%); }
+        to { transform: translateY(0); }
+    }
+}
